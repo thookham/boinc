@@ -51,17 +51,14 @@ using std::vector;
 // Called every second from the main polling loop.
 //
 bool CLIENT_STATE::handle_finished_apps() {
-    ACTIVE_TASK* atp;
     bool action = false;
     static double last_time = 0;
     if (!clock_change && now - last_time < HANDLE_FINISHED_APPS_PERIOD) return false;
     last_time = now;
 
-    vector<ACTIVE_TASK*>::iterator iter;
-
-    iter = active_tasks.active_tasks.begin();
+    auto iter = active_tasks.active_tasks.begin();
     while (iter != active_tasks.active_tasks.end()) {
-        atp = *iter;
+        ACTIVE_TASK* atp = iter->get();
         switch (atp->task_state()) {
         case PROCESS_EXITED:
         case PROCESS_WAS_SIGNALED:
@@ -78,7 +75,6 @@ bool CLIENT_STATE::handle_finished_apps() {
                 adjust_rec();     // update REC before erasing ACTIVE_TASK
             }
             iter = active_tasks.active_tasks.erase(iter);
-            delete atp;
             set_client_state_dirty("handle_finished_apps");
 
             // the following is critical; otherwise the result is
@@ -312,11 +308,9 @@ double CLIENT_STATE::get_fraction_done(RESULT* result) {
 // or -1 if can't find one
 //
 int CLIENT_STATE::latest_version(APP* app, char* platform) {
-    unsigned int i;
     int best = -1;
 
-    for (i=0; i<app_versions.size(); i++) {
-        APP_VERSION* avp = app_versions[i];
+    for (auto const& avp : app_versions) {
         if (avp->app != app) continue;
         if (strcmp(platform, avp->platform)) continue;
         if (avp->version_num < best) continue;
@@ -328,9 +322,8 @@ int CLIENT_STATE::latest_version(APP* app, char* platform) {
 // Find the ACTIVE_TASK in the current set with the matching PID
 //
 ACTIVE_TASK* ACTIVE_TASK_SET::lookup_pid(int pid) {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK *atp = active_tasks[i];
-        if (atp->pid == pid) return atp;
+    for (auto const& atp : active_tasks) {
+        if (atp->pid == pid) return atp.get();
     }
     return NULL;
 }
@@ -338,20 +331,18 @@ ACTIVE_TASK* ACTIVE_TASK_SET::lookup_pid(int pid) {
 // Find the ACTIVE_TASK in the current set with the matching result
 //
 ACTIVE_TASK* ACTIVE_TASK_SET::lookup_result(RESULT* result) {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK *atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->result == result) {
-            return atp;
+            return atp.get();
         }
     }
     return NULL;
 }
 
 ACTIVE_TASK* ACTIVE_TASK_SET::lookup_slot(int slot) {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK *atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->slot == slot) {
-            return atp;
+            return atp.get();
         }
     }
     return NULL;
@@ -362,8 +353,7 @@ ACTIVE_TASK* ACTIVE_TASK_SET::lookup_slot(int slot) {
 // i.e. they finished as the client was shutting down
 //
 void ACTIVE_TASK_SET::check_for_finished_jobs() {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         int exit_code;
         if (atp->finish_file_present(exit_code)) {
             msg_printf(atp->wup->project, MSG_INFO,
@@ -467,7 +457,7 @@ void CLIENT_STATE::docker_cleanup() {
     // make lists of the images and containers used by active jobs
     //
     DOCKER_JOB_INFO info;
-    for (ACTIVE_TASK *atp: active_tasks.active_tasks) {
+    for (auto const& atp : active_tasks.active_tasks) {
         if (!strstr(atp->app_version->plan_class, "docker")) continue;
         char buf[256];
         escape_project_url(atp->wup->project->master_url, buf);

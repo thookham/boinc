@@ -254,7 +254,7 @@ void update_trickle_up_urls(PROJECT* p, vector<string> &urls) {
             }
         }
         if (!found) {
-            p->trickle_up_ops.push_back(new TRICKLE_UP_OP(url));
+            p->trickle_up_ops.push_back(std::make_unique<TRICKLE_UP_OP>(url));
             break;
         }
     }

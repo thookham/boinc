@@ -118,7 +118,7 @@ void CLIENT_STATE::sporadic_poll() {
     // find jobs that are active but shouldn't be
     // (CA_COMPUTING -> CA_NONE transitions)
     //
-    for (ACTIVE_TASK *atp: active_tasks.active_tasks) {
+    for (auto const& atp : active_tasks.active_tasks) {
         if (!atp->sporadic()) continue;
         if (atp->sporadic_ca_state != CA_COMPUTING) continue;
 
@@ -165,7 +165,7 @@ void CLIENT_STATE::sporadic_poll() {
     // activate jobs as needed
     // (CA_COULD_COMPUTE -> CA_COMPUTING transitions)
     //
-    for (ACTIVE_TASK *atp: active_tasks.active_tasks) {
+    for (auto const& atp : active_tasks.active_tasks) {
         if (!atp->sporadic()) continue;
         if (atp->sporadic_ca_state != CA_COULD_COMPUTE) continue;
         if (computing_suspended(atp)) {
@@ -202,7 +202,7 @@ void CLIENT_STATE::sporadic_poll() {
 
     // assign states to initial, preempted, and done jobs
     //
-    for (ACTIVE_TASK *atp: active_tasks.active_tasks) {
+    for (auto const& atp : active_tasks.active_tasks) {
         if (!atp->sporadic()) continue;
         if (atp->sporadic_ca_state != CA_NONE) continue;
         if (computing_suspended(atp)) {

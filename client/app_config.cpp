@@ -53,8 +53,7 @@ int APP_CONFIGS::config_app_versions(PROJECT* p, bool show_warnings) {
         app->report_results_immediately = ac.report_results_immediately;
 
         if (!ac.gpu_gpu_usage || !ac.gpu_cpu_usage) continue;
-        for (unsigned int j=0; j<gstate.app_versions.size(); j++) {
-            APP_VERSION* avp = gstate.app_versions[j];
+        for (auto const& avp : gstate.app_versions) {
             if (avp->app != app) continue;
             if (!avp->resource_usage.rsc_type) continue;
             avp->resource_usage.coproc_usage = ac.gpu_gpu_usage;
@@ -73,8 +72,7 @@ int APP_CONFIGS::config_app_versions(PROJECT* p, bool show_warnings) {
         }
         bool found = false;
         const size_t cmdline_len = strlen(avc.cmdline);
-        for (unsigned int j=0; j<gstate.app_versions.size(); j++) {
-            APP_VERSION* avp = gstate.app_versions[j];
+        for (auto const& avp : gstate.app_versions) {
             if (avp->app != app) continue;
             if (strcmp(avp->plan_class, avc.plan_class)) continue;
             found = true;
@@ -107,11 +105,11 @@ int APP_CONFIGS::config_app_versions(PROJECT* p, bool show_warnings) {
 // clear app- and project-level counters to enforce max concurrent limits
 //
 void max_concurrent_init() {
-    for (unsigned int i=0; i<gstate.apps.size(); i++) {
-        gstate.apps[i]->app_n_concurrent = 0;
+    for (auto const& app : gstate.apps) {
+        app->app_n_concurrent = 0;
     }
-    for (unsigned int i=0; i<gstate.projects.size(); i++) {
-        gstate.projects[i]->proj_n_concurrent = 0;
+    for (auto const& p : gstate.projects) {
+        p->proj_n_concurrent = 0;
     }
 }
 
@@ -122,8 +120,7 @@ void max_concurrent_init() {
 //
 static void clear_app_config(PROJECT* p) {
     p->app_configs.clear();
-    for (unsigned int i=0; i<gstate.apps.size(); i++) {
-        APP* app = gstate.apps[i];
+    for (auto const& app : gstate.apps) {
         if (app->project != p) continue;
         app->max_concurrent = 0;
         app->report_results_immediately = false;
@@ -143,25 +140,24 @@ void check_app_config(const char* prefix) {
     char path[MAXPATHLEN];
     FILE* f;
 
-    for (unsigned int i=0; i<gstate.projects.size(); i++) {
-        PROJECT* p = gstate.projects[i];
+    for (auto const& p : gstate.projects) {
         snprintf(path, sizeof(path), "%s%s/%s",
             prefix, p->project_dir(), APP_CONFIG_FILE_NAME
         );
         f = boinc_fopen(path, "r");
         if (!f) {
-            clear_app_config(p);
+            clear_app_config(p.get());
             continue;
         }
-        msg_printf(p, MSG_INFO, "Found %s", APP_CONFIG_FILE_NAME);
+        msg_printf(p.get(), MSG_INFO, "Found %s", APP_CONFIG_FILE_NAME);
         vector<string> msgs;
         int retval = p->app_configs.parse_file(f, msgs, log_flags);
-        print_msgs(msgs, p);
+        print_msgs(msgs, p.get());
         if (!retval) {
             p->report_results_immediately = p->app_configs.report_results_immediately;
-            retval = p->app_configs.config_app_versions(p, true);
+            retval = p->app_configs.config_app_versions(p.get(), true);
             if (!retval) {
-                notices.remove_notices(p, REMOVE_APP_CONFIG_MSG);
+                notices.remove_notices(p.get(), REMOVE_APP_CONFIG_MSG);
             }
         }
         fclose(f);
@@ -170,16 +166,14 @@ void check_app_config(const char* prefix) {
 
 void show_app_config() {
     if (!have_max_concurrent) return;
-    for (unsigned int i=0; i<gstate.projects.size(); i++) {
-        PROJECT* p = gstate.projects[i];
+    for (auto const& p : gstate.projects) {
         if (p->app_configs.project_max_concurrent) {
-            msg_printf(p, MSG_INFO,
+            msg_printf(p.get(), MSG_INFO,
                 "Max %d concurrent jobs", p->app_configs.project_max_concurrent
             );
         }
     }
-    for (unsigned int i=0; i<gstate.apps.size(); i++) {
-        APP* app = gstate.apps[i];
+    for (auto const& app : gstate.apps) {
         if (app->max_concurrent) {
             msg_printf(app->project, MSG_INFO,
                 "%s: Max %d concurrent jobs", app->name, app->max_concurrent

@@ -70,18 +70,18 @@ using std::vector;
 //
 struct CLIENT_STATE {
     vector<PLATFORM> platforms;
-    vector<PROJECT*> projects;
+    vector<std::unique_ptr<PROJECT>> projects;
         // in alphabetical order, to improve display
-    vector<APP*> apps;
-    vector<FILE_INFO*> file_infos;
-    vector<APP_VERSION*> app_versions;
-    vector<WORKUNIT*> workunits;
-    vector<RESULT*> results;
+    vector<std::unique_ptr<APP>> apps;
+    vector<std::unique_ptr<FILE_INFO>> file_infos;
+    vector<std::unique_ptr<APP_VERSION>> app_versions;
+    vector<std::unique_ptr<WORKUNIT>> workunits;
+    vector<std::unique_ptr<RESULT>> results;
         // list of jobs, ordered by increasing arrival time
 
-    PERS_FILE_XFER_SET* pers_file_xfers;
-    HTTP_OP_SET* http_ops;
-    FILE_XFER_SET* file_xfers;
+    std::unique_ptr<PERS_FILE_XFER_SET> pers_file_xfers;
+    std::unique_ptr<HTTP_OP_SET> http_ops;
+    std::unique_ptr<FILE_XFER_SET> file_xfers;
 #ifndef SIM
     GUI_RPC_CONN_SET gui_rpcs;
 #endif
@@ -459,7 +459,7 @@ struct CLIENT_STATE {
         // - result suspend/abort GUI RPC
     int make_scheduler_request(PROJECT*);
     int handle_scheduler_reply(PROJECT*, char* scheduler_url);
-    SCHEDULER_OP* scheduler_op;
+    std::unique_ptr<SCHEDULER_OP> scheduler_op;
     PROJECT* next_project_master_pending();
     PROJECT* next_project_sched_rpc_pending();
     PROJECT* next_project_trickle_up_pending();

@@ -334,7 +334,7 @@ int PROJECT::parse_state(XML_PARSER& xp) {
         if (xp.parse_bool("use_symlinks", use_symlinks)) continue;
         if (xp.parse_bool("anonymous_platform", btemp)) continue;
         if (xp.parse_string("trickle_up_url", stemp)) {
-            trickle_up_ops.push_back(new TRICKLE_UP_OP(stemp));
+            trickle_up_ops.push_back(std::make_unique<TRICKLE_UP_OP>(stemp));
             continue;
         }
         if (xp.parse_double("desired_disk_usage", desired_disk_usage)) continue;
@@ -682,8 +682,7 @@ void PROJECT::resume() {
 }
 
 void PROJECT::abort_not_started() {
-    for (unsigned int i=0; i<gstate.results.size(); i++) {
-        RESULT* rp = gstate.results[i];
+    for (auto const& rp : gstate.results) {
         if (rp->project != this) continue;
         if (rp->is_not_started()) {
             rp->abort_inactive(EXIT_ABORTED_VIA_GUI);
@@ -694,8 +693,7 @@ void PROJECT::abort_not_started() {
 void PROJECT::get_task_durs(double& not_started_dur, double& in_progress_dur) {
     not_started_dur = 0;
     in_progress_dur = 0;
-    for (unsigned int i=0; i<gstate.results.size(); i++) {
-        RESULT* rp = gstate.results[i];
+    for (auto const& rp : gstate.results) {
         if (rp->project != this) continue;
         double d = rp->estimated_runtime_remaining();
         d /= gstate.time_stats.availability_frac(rp->resource_usage.rsc_type);
@@ -823,8 +821,7 @@ bool PROJECT::some_download_stalled() {
 
 bool PROJECT::runnable(int rsc_type) {
     if (suspended_via_gui) return false;
-    for (unsigned int i=0; i<gstate.results.size(); i++) {
-        RESULT* rp = gstate.results[i];
+    for (auto const& rp : gstate.results) {
         if (rp->project != this) continue;
         if (rsc_type != RSC_TYPE_ANY) {
             if (rp->resource_usage.rsc_type != rsc_type) {
@@ -848,8 +845,7 @@ bool PROJECT::uploading() {
 
 bool PROJECT::downloading() {
     if (suspended_via_gui) return false;
-    for (unsigned int i=0; i<gstate.results.size(); i++) {
-        RESULT* rp = gstate.results[i];
+    for (auto const& rp : gstate.results) {
         if (rp->project != this) continue;
         if (rp->downloading()) return true;
     }
@@ -857,17 +853,14 @@ bool PROJECT::downloading() {
 }
 
 bool PROJECT::has_results() {
-    for (unsigned i=0; i<gstate.results.size(); i++) {
-        RESULT *rp = gstate.results[i];
+    for (auto const& rp : gstate.results) {
         if (rp->project == this) return true;
     }
     return false;
 }
 
 bool PROJECT::some_result_suspended() {
-    unsigned int i;
-    for (i=0; i<gstate.results.size(); i++) {
-        RESULT *rp = gstate.results[i];
+    for (auto const& rp : gstate.results) {
         if (rp->project != this) continue;
         if (rp->suspended_via_gui) return true;
     }
@@ -978,8 +971,7 @@ void PROJECT::check_no_apps() {
         no_rsc_apps[i] = true;
     }
 
-    for (unsigned int i=0; i<gstate.app_versions.size(); i++) {
-        APP_VERSION* avp = gstate.app_versions[i];
+    for (auto const& avp : gstate.app_versions) {
         if (avp->project != this) continue;
         no_rsc_apps[avp->resource_usage.rsc_type] = false;
     }

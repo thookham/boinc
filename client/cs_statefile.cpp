@@ -135,9 +135,9 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR, "Can't parse project in state file");
             } else {
 #ifdef SIM
-                project = new PROJECT;
+                projects.push_back(std::make_unique<PROJECT>());
+                project = projects.back().get();
                 *project = temp_project;
-                projects.push_back(project);
 #else
                 project = lookup_project(temp_project.master_url);
                 if (project) {
@@ -153,25 +153,26 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             continue;
         }
         if (xp.match_tag("app")) {
-            APP* app = new APP;
+            apps.push_back(std::make_unique<APP>());
+            APP* app = apps.back().get();
             retval = app->parse(xp);
             if (!project) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Application %s outside project in state file",
                     app->name
                 );
-                delete app;
+                apps.pop_back();
                 continue;
             }
             if (project->anonymous_platform) {
-                delete app;
+                apps.pop_back();
                 continue;
             }
             if (retval) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Can't parse application in state file"
                 );
-                delete app;
+                apps.pop_back();
                 continue;
             }
             retval = link_app(project, app);
@@ -180,32 +181,32 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                     "Can't handle application %s in state file",
                     app->name
                 );
-                delete app;
+                apps.pop_back();
                 continue;
             }
-            apps.push_back(app);
             continue;
         }
         if (xp.match_tag("file_info") || xp.match_tag("file")) {
-            FILE_INFO* fip = new FILE_INFO;
+            file_infos.push_back(std::make_unique<FILE_INFO>());
+            FILE_INFO* fip = file_infos.back().get();
             retval = fip->parse(xp);
             if (!project) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "File info outside project in state file"
                 );
-                delete fip;
+                file_infos.pop_back();
                 continue;
             }
             if (retval) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Can't handle file info in state file"
                 );
-                delete fip;
+                file_infos.pop_back();
                 continue;
             }
             retval = link_file_info(project, fip);
             if (project->anonymous_platform && retval == ERR_NOT_UNIQUE) {
-                delete fip;
+                file_infos.pop_back();
                 continue;
             }
             if (retval) {
@@ -213,10 +214,9 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                     "Can't handle file info %s in state file",
                     fip->name
                 );
-                delete fip;
+                file_infos.pop_back();
                 continue;
             }
-            file_infos.push_back(fip);
 #ifndef SIM
             // If the file had a failure before,
             // don't start another file transfer
@@ -248,24 +248,25 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             continue;
         }
         if (xp.match_tag("app_version")) {
-            APP_VERSION* avp = new APP_VERSION;
+            app_versions.push_back(std::make_unique<APP_VERSION>());
+            APP_VERSION* avp = app_versions.back().get();
             retval = avp->parse(xp);
             if (!project) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Application version outside project in state file"
                 );
-                delete avp;
+                app_versions.pop_back();
                 continue;
             }
             if (project->anonymous_platform) {
-                delete avp;
+                app_versions.pop_back();
                 continue;
             }
             if (retval) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Can't parse application version in state file"
                 );
-                delete avp;
+                app_versions.pop_back();
                 continue;
             }
             if (strlen(avp->platform) == 0) {
@@ -292,7 +293,7 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                         "App version uses deprecated GPU type '%s' - discarding",
                         avp->resource_usage.missing_coproc_name
                     );
-                    delete avp;
+                    app_versions.pop_back();
                     continue;
                 } else {
                     msg_printf(project, MSG_INFO,
@@ -303,27 +304,27 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             }
             retval = link_app_version(project, avp);
             if (retval) {
-                delete avp;
+                app_versions.pop_back();
                 continue;
             }
-            app_versions.push_back(avp);
             continue;
         }
         if (xp.match_tag("workunit")) {
-            WORKUNIT* wup = new WORKUNIT;
+            workunits.push_back(std::make_unique<WORKUNIT>());
+            WORKUNIT* wup = workunits.back().get();
             retval = wup->parse(xp);
             if (!project) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Workunit outside project in state file"
                 );
-                delete wup;
+                workunits.pop_back();
                 continue;
             }
             if (retval) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Can't parse workunit in state file"
                 );
-                delete wup;
+                workunits.pop_back();
                 continue;
             }
             retval = link_workunit(project, wup);
@@ -331,28 +332,28 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "Can't handle workunit in state file"
                 );
-                delete wup;
+                workunits.pop_back();
                 continue;
             }
-            workunits.push_back(wup);
             continue;
         }
         if (xp.match_tag("result")) {
-            RESULT* rp = new RESULT;
+            results.push_back(std::make_unique<RESULT>());
+            RESULT* rp = results.back().get();
             retval = rp->parse_state(xp);
             if (!project) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Task %s outside project in state file",
                     rp->name
                 );
-                delete rp;
+                results.pop_back();
                 continue;
             }
             if (retval) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Can't parse task in state file"
                 );
-                delete rp;
+                results.pop_back();
                 continue;
             }
             retval = link_result(project, rp);
@@ -361,7 +362,7 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                     "Can't link task %s in state file",
                     rp->name
                 );
-                delete rp;
+                results.pop_back();
                 continue;
             }
             // handle transition from old clients which didn't store result.platform;
@@ -385,11 +386,10 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                     "No application found for task %s: platform %s version %d plan class %s; discarding",
                     rp->wup->name, rp->platform, rp->version_num, rp->plan_class
                 );
-                delete rp;
+                results.pop_back();
                 continue;
             }
             rp->wup->version_num = rp->version_num;
-            results.push_back(rp);
             continue;
         }
         if (xp.match_tag("project_files")) {
@@ -1081,18 +1081,15 @@ int CLIENT_STATE::write_state_gui(MIOFILE& f) {
 }
 
 int CLIENT_STATE::write_tasks_gui(MIOFILE& f, bool active_only, bool ac_updated) {
-    unsigned int i;
-
     if (active_only) {
-        for (i=0; i<active_tasks.active_tasks.size(); i++) {
-            RESULT* rp = active_tasks.active_tasks[i]->result;
+        for (auto const& atp : active_tasks.active_tasks) {
+            RESULT* rp = atp->result;
             if (rp) {
                 rp->write_gui(f, ac_updated);
             }
         }
     } else {
-        for (i=0; i<results.size(); i++) {
-            RESULT* rp = results[i];
+        for (auto const& rp : results) {
             if (rp) {
                 rp->write_gui(f, ac_updated);
             }

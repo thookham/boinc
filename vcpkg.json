@@ -1,0 +1,11 @@
+{
+    "name": "boinc",
+    "version-string": "8.3.0",
+    "dependencies": [
+        "curl",
+        "openssl",
+        "zlib",
+        "sqlite3"
+    ],
+    "builtin-baseline": "3426db05b996481ca31e95fff37d4cf57e0da38b"
+}

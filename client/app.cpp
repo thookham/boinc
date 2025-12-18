@@ -304,15 +304,7 @@ int ACTIVE_TASK::init(RESULT* rp) {
 // Deallocate memory to prevent unneeded reporting of memory leaks
 //
 void ACTIVE_TASK_SET::free_mem() {
-    vector<ACTIVE_TASK*>::iterator at_iter;
-    ACTIVE_TASK *at;
-
-    at_iter = active_tasks.begin();
-    while (at_iter != active_tasks.end()) {
-        at = active_tasks[0];
-        at_iter = active_tasks.erase(at_iter);
-        delete at;
-    }
+    active_tasks.clear();
 }
 
 #ifndef SIM
@@ -394,8 +386,7 @@ void ACTIVE_TASK_SET::get_memory_usage() {
         boinc_total.clear();
         boinc_total.working_set_size_smoothed = 0;
     }
-    for (i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->task_state() == PROCESS_UNINITIALIZED) continue;
         if (atp->pid ==0) continue;
 
@@ -695,9 +686,8 @@ int ACTIVE_TASK::current_disk_usage(double& size) {
 }
 
 bool ACTIVE_TASK_SET::is_slot_in_use(int slot) {
-    unsigned int i;
-    for (i=0; i<active_tasks.size(); i++) {
-        if (active_tasks[i]->slot == slot) {
+    for (auto const& atp : active_tasks) {
+        if (atp->slot == slot) {
             return true;
         }
     }
@@ -706,9 +696,8 @@ bool ACTIVE_TASK_SET::is_slot_in_use(int slot) {
 
 bool ACTIVE_TASK_SET::is_slot_dir_in_use(char* dir) {
     char path[MAXPATHLEN];
-    unsigned int i;
-    for (i=0; i<active_tasks.size(); i++) {
-        get_slot_dir(active_tasks[i]->slot, path, sizeof(path));
+    for (auto const& atp : active_tasks) {
+        get_slot_dir(atp->slot, path, sizeof(path));
         if (!strcmp(path, dir)) return true;
     }
     return false;
@@ -776,9 +765,8 @@ int ACTIVE_TASK::get_free_slot(RESULT* rp) {
 #endif
 
 bool ACTIVE_TASK_SET::slot_taken(int slot) {
-    unsigned int i;
-    for (i=0; i<active_tasks.size(); i++) {
-        if (active_tasks[i]->slot == slot) return true;
+    for (auto const& atp : active_tasks) {
+        if (atp->slot == slot) return true;
     }
     return false;
 }
@@ -971,8 +959,7 @@ int ACTIVE_TASK::parse(XML_PARSER& xp) {
 
             // make sure no two active tasks are in same slot
             //
-            for (i=0; i<gstate.active_tasks.active_tasks.size(); i++) {
-                ACTIVE_TASK* atp = gstate.active_tasks.active_tasks[i];
+            for (auto const& atp : gstate.active_tasks.active_tasks) {
                 if (atp->slot == slot) {
                     msg_printf(project, MSG_INTERNAL_ERROR,
                         "State file error: two tasks in slot %d\n", slot
@@ -1033,12 +1020,11 @@ int ACTIVE_TASK::parse(XML_PARSER& xp) {
 }
 
 int ACTIVE_TASK_SET::write(MIOFILE& fout) {
-    unsigned int i;
     int retval;
 
     fout.printf("<active_task_set>\n");
-    for (i=0; i<active_tasks.size(); i++) {
-        retval = active_tasks[i]->write(fout);
+    for (auto const& atp : active_tasks) {
+        retval = atp->write(fout);
         if (retval) return retval;
     }
     fout.printf("</active_task_set>\n");
@@ -1053,7 +1039,7 @@ int ACTIVE_TASK_SET::parse(XML_PARSER& xp) {
             ACTIVE_TASK at;
             at.parse(xp);
 #else
-            ACTIVE_TASK* atp = new ACTIVE_TASK;
+            std::unique_ptr<ACTIVE_TASK> atp = std::make_unique<ACTIVE_TASK>();
             int retval = atp->parse(xp);
             if (!retval) {
                 if (slot_taken(atp->slot)) {
@@ -1064,8 +1050,7 @@ int ACTIVE_TASK_SET::parse(XML_PARSER& xp) {
                     retval = ERR_XML_PARSE;
                 }
             }
-            if (!retval) active_tasks.push_back(atp);
-            else delete atp;
+            if (!retval) active_tasks.push_back(std::move(atp));
 #endif
         } else {
             if (log_flags.unparsed_xml) {
@@ -1170,12 +1155,9 @@ bool MSG_QUEUE::timeout(double diff) {
 //
 void ACTIVE_TASK_SET::report_overdue() {
 #ifndef SIM
-    unsigned int i;
-    ACTIVE_TASK* atp;
     double mod = cc_config.max_overdue_days;
 
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         double diff = (gstate.now - atp->result->report_deadline)/86400;
         if (diff <= 0) continue;
         if (mod>=0 && diff > mod) {
@@ -1231,15 +1213,13 @@ int ACTIVE_TASK::handle_upload_files() {
 }
 
 void ACTIVE_TASK_SET::handle_upload_files() {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         atp->handle_upload_files();
     }
 }
 
 bool ACTIVE_TASK_SET::want_network() {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->want_network) return true;
     }
     return false;
@@ -1247,8 +1227,7 @@ bool ACTIVE_TASK_SET::want_network() {
 
 void ACTIVE_TASK_SET::network_available() {
 #ifndef SIM
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->want_network) {
             atp->send_network_available();
         }
@@ -1273,8 +1252,7 @@ void ACTIVE_TASK::upload_notify_app(const FILE_INFO* fip, const FILE_REF* frp) {
 // If any running apps are waiting for it, notify them
 //
 void ACTIVE_TASK_SET::upload_notify_app(FILE_INFO* fip) {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         RESULT* rp = atp->result;
         FILE_REF* frp = rp->lookup_file(fip);
         if (frp) {
@@ -1285,8 +1263,7 @@ void ACTIVE_TASK_SET::upload_notify_app(FILE_INFO* fip) {
 
 #ifndef SIM
 void ACTIVE_TASK_SET::init() {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         atp->init(atp->result);
         atp->scheduler_state = CPU_SCHED_PREEMPTED;
         atp->read_task_state_file();

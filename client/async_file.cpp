@@ -212,7 +212,7 @@ int ASYNC_VERIFY::init(FILE_INFO* _fip) {
         if (!in) return ERR_FOPEN;
     }
     async_verifies.push_back(this);
-    fip->async_verify = this;
+    // fip->async_verify ownership is transferred by caller
     return 0;
 }
 
@@ -252,9 +252,10 @@ void ASYNC_VERIFY::finish() {
             "[async] async verify of %s finished", fip->name
         );
     }
-    fip->async_verify = NULL;
-    fip->status = FILE_PRESENT;
-    fip->set_permissions();
+    FILE_INFO* fip_copy = fip;
+    fip_copy->async_verify.reset();
+    fip_copy->status = FILE_PRESENT;
+    fip_copy->set_permissions();
 }
 
 void ASYNC_VERIFY::error(int retval) {
@@ -264,8 +265,9 @@ void ASYNC_VERIFY::error(int retval) {
             fip->name, boincerror(retval)
         );
     }
-    fip->async_verify = NULL;
-    fip->status = retval;
+    FILE_INFO* fip_copy = fip;
+    fip_copy->async_verify.reset();
+    fip_copy->status = retval;
 }
 
 int ASYNC_VERIFY::verify_chunk() {
@@ -314,7 +316,7 @@ void remove_async_verify(ASYNC_VERIFY* avp) {
         }
         ++i;
     }
-    delete avp;
+    // delete avp; // Ownership managed by FILE_INFO::async_verify unique_ptr
 }
 
 // If there are any async file operations,

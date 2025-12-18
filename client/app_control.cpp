@@ -96,8 +96,7 @@ bool ACTIVE_TASK_SET::poll() {
     process_control_poll();
     action |= check_rsc_limits_exceeded();
     get_msgs();
-    for (i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->task_state() == PROCESS_ABORT_PENDING) {
             if (gstate.now > atp->abort_time + ABORT_TIMEOUT) {
                 if (log_flags.task_debug) {
@@ -130,8 +129,7 @@ bool ACTIVE_TASK_SET::poll() {
     if (gstate.clock_change || gstate.now - last_finish_check_time > 10) {
         last_finish_check_time = gstate.now;
         int exit_code;
-        for (i=0; i<active_tasks.size(); i++) {
-            ACTIVE_TASK* atp = active_tasks[i];
+        for (auto const& atp : active_tasks) {
             if (atp->task_state() == PROCESS_UNINITIALIZED) continue;
             if (atp->finish_file_time) {
                 if (gstate.now - atp->finish_file_time > FINISH_FILE_TIMEOUT) {
@@ -353,8 +351,7 @@ static void limbo_message(ACTIVE_TASK& at) {
 static void clear_schedule_backoffs(ACTIVE_TASK* atp) {
     int rt = atp->result->resource_usage.rsc_type;
     if (rt == RSC_TYPE_CPU) return;
-    for (unsigned int i=0; i<gstate.results.size(); i++) {
-        RESULT* rp = gstate.results[i];
+    for (auto const& rp : gstate.results) {
         if (rp->resource_usage.rsc_type == rt) {
             rp->schedule_backoff = 0;
         }
@@ -685,11 +682,8 @@ bool ACTIVE_TASK::temporary_exit_file_present(
 }
 
 void ACTIVE_TASK_SET::send_trickle_downs() {
-    unsigned int i;
-    ACTIVE_TASK* atp;
     bool sent;
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (!atp->process_exists()) continue;
         if (atp->have_trickle_down) {
             if (!atp->app_client_shm.shm) continue;
@@ -700,18 +694,15 @@ void ACTIVE_TASK_SET::send_trickle_downs() {
             if (!atp->app_client_shm.shm) continue;
             sent = atp->app_client_shm.shm->trickle_down.send_msg("<upload_file_status/>\n");
             if (sent) atp->send_upload_file_status = false;
-       }
+        }
     }
 }
 
 void ACTIVE_TASK_SET::send_heartbeats() {
-    unsigned int i;
-    ACTIVE_TASK* atp;
     char buf[1024];
     double ar = gstate.available_ram();
 
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (!atp->process_exists()) continue;
         if (!atp->app_client_shm.shm) continue;
         snprintf(buf, sizeof(buf), "<heartbeat/>"
@@ -749,11 +740,7 @@ void ACTIVE_TASK_SET::send_heartbeats() {
 // send queued process-control messages; check for timeout
 //
 void ACTIVE_TASK_SET::process_control_poll() {
-    unsigned int i;
-    ACTIVE_TASK* atp;
-
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (!atp->process_exists()) continue;
         if (!atp->app_client_shm.shm) continue;
 
@@ -783,10 +770,8 @@ bool ACTIVE_TASK_SET::check_app_exited() {
 
 #ifdef _WIN32
     unsigned long exit_code;
-    unsigned int i;
 
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (!atp->process_exists()) continue;
         if (GetExitCodeProcess(atp->process_handle, &exit_code)) {
             if (exit_code != STILL_ACTIVE) {
@@ -888,8 +873,7 @@ bool ACTIVE_TASK_SET::check_rsc_limits_exceeded() {
     if (gstate.clock_change || gstate.now > last_disk_check_time + min_interval) {
         do_disk_check = true;
     }
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->task_state() != PROCESS_EXECUTING) continue;
         if (!atp->always_run() && (atp->elapsed_time > atp->max_elapsed_time)) {
             snprintf(buf, sizeof(buf), "exceeded elapsed time limit %.2f (%.2fG/%.2fG)",
@@ -904,26 +888,6 @@ bool ACTIVE_TASK_SET::check_rsc_limits_exceeded() {
             did_anything = true;
             continue;
         }
-#if 0
-        // removing this for now because most projects currently
-        // have too-low values of workunit.rsc_memory_bound
-        // (causing lots of aborts)
-        // and I don't think we can expect projects to provide
-        // accurate bounds.
-        //
-        if (atp->procinfo.working_set_size_smoothed > atp->max_mem_usage) {
-            snprintf(buf, sizeof(buf), "working set size > workunit.rsc_memory_bound: %.2fMB > %.2fMB",
-                atp->procinfo.working_set_size_smoothed/MEGA, atp->max_mem_usage/MEGA
-            );
-            msg_printf(atp->result->project, MSG_INFO,
-                "Aborting task %s: %s",
-                atp->result->name, buf
-            );
-            atp->abort_task(EXIT_MEM_LIMIT_EXCEEDED, buf);
-            did_anything = true;
-            continue;
-        }
-#endif
         if (atp->procinfo.working_set_size_smoothed > max_ram) {
             snprintf(buf, sizeof(buf), "working set size > client RAM limit: %.2fMB > %.2fMB",
                 atp->procinfo.working_set_size_smoothed/MEGA, max_ram/MEGA
@@ -1066,11 +1030,7 @@ int ACTIVE_TASK::request_reread_app_info() {
 // tell all running apps of a project to reread prefs
 //
 void ACTIVE_TASK_SET::request_reread_prefs(PROJECT* project) {
-    unsigned int i;
-    ACTIVE_TASK* atp;
-
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->result->project != project) continue;
         if (!atp->process_exists()) continue;
         atp->request_reread_prefs();
@@ -1078,8 +1038,7 @@ void ACTIVE_TASK_SET::request_reread_prefs(PROJECT* project) {
 }
 
 void ACTIVE_TASK_SET::request_reread_app_info() {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (!atp->process_exists()) continue;
         atp->request_reread_app_info();
     }
@@ -1144,14 +1103,11 @@ int ACTIVE_TASK_SET::exit_tasks(bool will_restart, PROJECT* proj) {
 //
 int ACTIVE_TASK_SET::wait_for_exit(double wait_time, PROJECT* proj) {
     bool all_exited;
-    unsigned int i,n;
-    ACTIVE_TASK *atp;
 
-    for (i=0; i<10; i++) {
+    for (int i=0; i<10; i++) {
         all_exited = true;
 
-        for (n=0; n<active_tasks.size(); n++) {
-            atp = active_tasks[n];
+        for (auto const& atp : active_tasks) {
             if (proj && atp->wup->project != proj) continue;
             if (!atp->has_task_exited()) {
                 all_exited = false;
@@ -1167,18 +1123,14 @@ int ACTIVE_TASK_SET::wait_for_exit(double wait_time, PROJECT* proj) {
 }
 
 int ACTIVE_TASK_SET::abort_project(PROJECT* project) {
-    vector<ACTIVE_TASK*>::iterator task_iter;
-    ACTIVE_TASK* atp;
-
     exit_tasks(false, project);
-    task_iter = active_tasks.begin();
+    auto task_iter = active_tasks.begin();
     while (task_iter != active_tasks.end()) {
-        atp = *task_iter;
+        ACTIVE_TASK* atp = task_iter->get();
         if (atp->result->project == project) {
             client_clean_out_dir(atp->slot_dir, "abort_project()");
             remove_project_owned_dir(atp->slot_dir);
             task_iter = active_tasks.erase(task_iter);
-            delete atp;
         } else {
             ++task_iter;
         }
@@ -1190,18 +1142,7 @@ int ACTIVE_TASK_SET::abort_project(PROJECT* project) {
 // e.g. because on batteries, time of day, benchmarking, CPU throttle, etc.
 //
 void ACTIVE_TASK_SET::suspend_all(int reason) {
-    for (unsigned int i=0; i<active_tasks.size(); i++) {
-        ACTIVE_TASK* atp = active_tasks[i];
-
-        // don't suspend if process doesn't exist,
-        // or if quit/abort is pending.
-        // If process is currently suspended, proceed;
-        // the new suspension may require it to be removed from memory.
-        // E.g. a GPU job may currently be suspended due to CPU throttling,
-        // and therefore left in memory,
-        // but this suspension (say, a user request)
-        // might require it to be removed from memory.
-        //
+    for (auto const& atp : active_tasks) {
         switch (atp->task_state()) {
         case PROCESS_EXECUTING:
         case PROCESS_SUSPENDED:
@@ -1210,8 +1151,6 @@ void ACTIVE_TASK_SET::suspend_all(int reason) {
             continue;
         }
 
-        // special cases for non-CPU-intensive apps
-        //
         if (atp->non_cpu_intensive()) {
             if (cc_config.dont_suspend_nci) {
                 continue;
@@ -1221,8 +1160,6 @@ void ACTIVE_TASK_SET::suspend_all(int reason) {
             }
         }
 
-        // handle CPU throttling separately
-        //
         if (reason == SUSPEND_REASON_CPU_THROTTLE) {
             if (atp->dont_throttle()) continue;
             atp->preempt(REMOVE_NEVER, reason);
@@ -1230,11 +1167,6 @@ void ACTIVE_TASK_SET::suspend_all(int reason) {
         }
 
 #ifdef ANDROID
-        // On Android, remove apps from memory if on batteries
-        // no matter what the reason for suspension.
-        // The message polling in the BOINC runtime system
-        // imposes an overhead which drains the battery
-        //
         if (gstate.host_info.host_is_running_on_batteries()) {
             atp->preempt(REMOVE_ALWAYS);
             continue;
@@ -1246,19 +1178,11 @@ void ACTIVE_TASK_SET::suspend_all(int reason) {
             atp->preempt(REMOVE_NEVER);
             break;
         case SUSPEND_REASON_CPU_USAGE:
-            // If we're suspending because of non-BOINC CPU load,
-            // don't remove from memory.
-            // Some systems do a security check when apps are launched,
-            // which uses a lot of CPU.
-            // Avoid going into a preemption loop.
-            //
             if (atp->always_run()) break;
             atp->preempt(REMOVE_NEVER);
             break;
         case SUSPEND_REASON_BATTERY_OVERHEATED:
         case SUSPEND_REASON_BATTERY_CHARGING:
-            // these conditions can oscillate, so leave apps in mem
-            //
             atp->preempt(REMOVE_NEVER);
             break;
         default:
@@ -1271,10 +1195,7 @@ void ACTIVE_TASK_SET::suspend_all(int reason) {
 // resume all currently scheduled tasks
 //
 void ACTIVE_TASK_SET::unsuspend_all(int reason) {
-    unsigned int i;
-    ACTIVE_TASK* atp;
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->scheduler_state != CPU_SCHED_SCHEDULED) continue;
         if (atp->task_state() == PROCESS_UNINITIALIZED) {
             if (atp->resume_or_start(false)) {
@@ -1294,10 +1215,7 @@ void ACTIVE_TASK_SET::unsuspend_all(int reason) {
 // the applications
 //
 bool ACTIVE_TASK_SET::is_task_executing() {
-    unsigned int i;
-    ACTIVE_TASK* atp;
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (atp->task_state() == PROCESS_EXECUTING) {
             return true;
         }
@@ -1310,10 +1228,7 @@ bool ACTIVE_TASK_SET::is_task_executing() {
 // or when a project is detached or reset
 //
 void ACTIVE_TASK_SET::request_tasks_exit(bool will_restart, PROJECT* proj) {
-    unsigned int i;
-    ACTIVE_TASK *atp;
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (proj && atp->wup->project != proj) continue;
         if (!atp->process_exists()) continue;
         if (will_restart) {
@@ -1328,10 +1243,7 @@ void ACTIVE_TASK_SET::request_tasks_exit(bool will_restart, PROJECT* proj) {
 // Don't wait for them to exit
 //
 void ACTIVE_TASK_SET::kill_tasks(PROJECT* proj) {
-    unsigned int i;
-    ACTIVE_TASK *atp;
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (proj && atp->wup->project != proj) continue;
         if (!atp->process_exists()) continue;
         atp->kill_running_task(true);
@@ -1566,8 +1478,7 @@ void ACTIVE_TASK_SET::get_msgs() {
     double et_diff = delta_t;
     double et_diff_throttle = delta_t * gstate.current_cpu_usage_limit()/100;
 
-    for (i=0; i<active_tasks.size(); i++) {
-        atp = active_tasks[i];
+    for (auto const& atp : active_tasks) {
         if (!atp->process_exists()) continue;
         old_time = atp->checkpoint_cpu_time;
         if (atp->scheduler_state == CPU_SCHED_SCHEDULED && !gstate.tasks_suspended) {

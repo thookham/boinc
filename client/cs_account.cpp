@@ -332,7 +332,8 @@ int CLIENT_STATE::parse_account_files() {
 
         f = boinc_fopen(name.c_str(), "r");
         if (!f) continue;
-        project = new PROJECT;
+        projects.push_back(std::make_unique<PROJECT>());
+        project = projects.back().get();
 
         // Assume we need to fetch master file and do sched RPC
         // unless client_state.xml says otherwise
@@ -345,7 +346,7 @@ int CLIENT_STATE::parse_account_files() {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Couldn't parse account file %s", name.c_str()
             );
-            delete project;
+            projects.pop_back();
             continue;
         }
 
@@ -366,7 +367,7 @@ int CLIENT_STATE::parse_account_files() {
                     "Misnamed account file %s - deleting", name.c_str()
                 );
                 boinc_delete_file(name.c_str());
-                delete project;
+                projects.pop_back();
                 continue;
             } else {
                 // no - rename this file
@@ -385,11 +386,9 @@ int CLIENT_STATE::parse_account_files() {
             msg_printf(project, MSG_INFO,
                 "Duplicate account file %s - ignoring", name.c_str()
             );
-            delete project;
+            projects.pop_back();
             continue;
         }
-
-        projects.push_back(project);
     }
     return 0;
 }
@@ -574,7 +573,8 @@ int CLIENT_STATE::add_project(
 
     // create project state
     //
-    project = new PROJECT;
+    projects.push_back(std::make_unique<PROJECT>());
+    project = projects.back().get();
     safe_strcpy(project->master_url, canonical_master_url);
     safe_strcpy(project->authenticator, auth);
     safe_strcpy(project->project_name, project_name);
@@ -584,20 +584,20 @@ int CLIENT_STATE::add_project(
 
     retval = project->write_account_file();
     if (retval) {
-        delete project;
+        projects.pop_back();
         return retval;
     }
 
     get_account_filename(canonical_master_url, path, sizeof(path));
     f = boinc_fopen(path, "r");
     if (!f) {
-        delete project;
+        projects.pop_back();
         return ERR_FOPEN;
     }
     retval = project->parse_account(f);
     fclose(f);
     if (retval) {
-        delete project;
+        projects.pop_back();
         return retval;
     }
 
@@ -619,10 +619,9 @@ int CLIENT_STATE::add_project(
 
     retval = make_project_dir(*project);
     if (retval) {
-        delete project;
+        projects.pop_back();
         return retval;
     }
-    projects.push_back(project);
     sort_projects_by_name();
     project->sched_rpc_pending = RPC_REASON_INIT;
 

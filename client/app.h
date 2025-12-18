@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <vector>
 #endif
+#include <memory>
 
 #include "app_ipc.h"
 #include "common_defs.h"
@@ -338,7 +339,7 @@ struct ACTIVE_TASK {
 
 class ACTIVE_TASK_SET {
 public:
-    typedef std::vector<ACTIVE_TASK*> active_tasks_v;
+    typedef std::vector<std::unique_ptr<ACTIVE_TASK>> active_tasks_v;
     active_tasks_v active_tasks;
     ACTIVE_TASK* lookup_pid(int);
     ACTIVE_TASK* lookup_result(RESULT*);

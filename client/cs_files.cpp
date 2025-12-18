@@ -211,12 +211,13 @@ int FILE_INFO::verify_file(
         snprintf(gzpath, sizeof(gzpath), "%s.gz", pathname);
         if (boinc_file_exists(gzpath) ) {
             if (allow_async && nbytes > ASYNC_FILE_THRESHOLD) {
-                ASYNC_VERIFY* avp = new ASYNC_VERIFY;
+                std::unique_ptr<ASYNC_VERIFY> avp = std::make_unique<ASYNC_VERIFY>();
                 retval = avp->init(this);
                 if (retval) {
                     status = retval;
                     return retval;
                 }
+                async_verify = std::move(avp);
                 status = FILE_VERIFY_PENDING;
                 return ERR_IN_PROGRESS;
             }
@@ -285,12 +286,13 @@ int FILE_INFO::verify_file(
             return ERR_NO_SIGNATURE;
         }
         if (allow_async && nbytes > ASYNC_FILE_THRESHOLD) {
-            ASYNC_VERIFY* avp = new ASYNC_VERIFY();
+            std::unique_ptr<ASYNC_VERIFY> avp = std::make_unique<ASYNC_VERIFY>();
             retval = avp->init(this);
             if (retval) {
                 status = retval;
                 return retval;
             }
+            async_verify = std::move(avp);
             status = FILE_VERIFY_PENDING;
             return ERR_IN_PROGRESS;
         }
@@ -330,12 +332,13 @@ int FILE_INFO::verify_file(
     } else if (strlen(md5_cksum)) {
         if (!strlen(cksum)) {
             if (allow_async && nbytes > ASYNC_FILE_THRESHOLD) {
-                ASYNC_VERIFY* avp = new ASYNC_VERIFY();
+                std::unique_ptr<ASYNC_VERIFY> avp = std::make_unique<ASYNC_VERIFY>();
                 retval = avp->init(this);
                 if (retval) {
                     status = retval;
                     return retval;
                 }
+                async_verify = std::move(avp);
                 status = FILE_VERIFY_PENDING;
                 return ERR_IN_PROGRESS;
             }

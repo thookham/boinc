@@ -848,16 +848,15 @@ int CLIENT_STATE::handle_scheduler_reply(
             app->sporadic = checked_app.sporadic;
             app->fraction_done_exact = checked_app.fraction_done_exact;
         } else {
-            app = new APP;
+            apps.push_back(std::make_unique<APP>());
+            app = apps.back().get();
             *app = checked_app;
             retval = link_app(project, app);
             if (retval) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "Can't handle application %s in scheduler reply", app->name
                 );
-                delete app;
-            } else {
-                apps.push_back(app);
+                apps.pop_back();
             }
         }
     }
@@ -867,7 +866,8 @@ int CLIENT_STATE::handle_scheduler_reply(
         if (fip) {
             fip->merge_info(sr.file_infos[i]);
         } else {
-            fip = new FILE_INFO;
+            file_infos.push_back(std::make_unique<FILE_INFO>());
+            fip = file_infos.back().get();
             *fip = sr.file_infos[i];
             if (fip->sticky_lifetime) {
                 fip->sticky_expire_time = now + fip->sticky_lifetime;
@@ -877,9 +877,7 @@ int CLIENT_STATE::handle_scheduler_reply(
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "Can't handle file %s in scheduler reply", fip->name
                 );
-                delete fip;
-            } else {
-                file_infos.push_back(fip);
+                file_infos.pop_back();
             }
         }
     }
@@ -941,18 +939,19 @@ int CLIENT_STATE::handle_scheduler_reply(
 
             continue;
         }
-        avp = new APP_VERSION;
+        app_versions.push_back(std::make_unique<APP_VERSION>());
+        avp = app_versions.back().get();
         *avp = avpp;
         retval = link_app_version(project, avp);
         if (retval) {
-             delete avp;
+             app_versions.pop_back();
              continue;
         }
-        app_versions.push_back(avp);
     }
     for (i=0; i<sr.workunits.size(); i++) {
         if (lookup_workunit(project, sr.workunits[i].name)) continue;
-        WORKUNIT* wup = new WORKUNIT;
+        workunits.push_back(std::make_unique<WORKUNIT>());
+        WORKUNIT* wup = workunits.back().get();
         *wup = sr.workunits[i];
         wup->project = project;
         retval = link_workunit(project, wup);
@@ -960,11 +959,10 @@ int CLIENT_STATE::handle_scheduler_reply(
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Can't handle task %s in scheduler reply", wup->name
             );
-            delete wup;
+            workunits.pop_back();
             continue;
         }
         wup->clear_errors();
-        workunits.push_back(wup);
     }
     double est_rsc_runtime[MAX_RSC];
     bool got_work_for_rsc[MAX_RSC];
@@ -987,14 +985,15 @@ int CLIENT_STATE::handle_scheduler_reply(
             }
             continue;
         }
-        RESULT* rp = new RESULT;
+        results.push_back(std::make_unique<RESULT>());
+        RESULT* rp = results.back().get();
         *rp = checked_result;
         retval = link_result(project, rp);
         if (retval) {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Can't handle task %s in scheduler reply", rp->name
             );
-            delete rp;
+            results.pop_back();
             continue;
         }
         if (strlen(rp->platform) == 0) {
@@ -1009,7 +1008,7 @@ int CLIENT_STATE::handle_scheduler_reply(
                 "No app version found for app %s platform %s ver %d class %s; discarding %s",
                 rp->wup->app->name, rp->platform, rp->version_num, rp->plan_class, rp->name
             );
-            delete rp;
+            results.pop_back();
             continue;
         }
         rp->init_resource_usage();
@@ -1034,7 +1033,6 @@ int CLIENT_STATE::handle_scheduler_reply(
         rp->wup->version_num = rp->version_num;
         rp->received_time = now;
         new_results.push_back(rp);
-        results.push_back(rp);
     }
 
     // find the resources for which we requested work and didn't get any

@@ -85,11 +85,11 @@ CLIENT_STATE::CLIENT_STATE()
     acct_mgr_op(&gui_http),
     lookup_login_token_op(&gui_http)
 {
-    http_ops = new HTTP_OP_SET();
-    file_xfers = new FILE_XFER_SET(http_ops);
-    pers_file_xfers = new PERS_FILE_XFER_SET(file_xfers);
+    http_ops = std::make_unique<HTTP_OP_SET>();
+    file_xfers = std::make_unique<FILE_XFER_SET>(http_ops.get());
+    pers_file_xfers = std::make_unique<PERS_FILE_XFER_SET>(file_xfers.get());
 #ifndef SIM
-    scheduler_op = new SCHEDULER_OP(http_ops);
+    scheduler_op = std::make_unique<SCHEDULER_OP>(http_ops.get());
 #endif
     time_stats.init();
     client_state_dirty = false;
@@ -367,18 +367,16 @@ const char* rsc_name_long(int i) {
 static void check_too_large_jobs() {
     unsigned int i, j;
     double m = gstate.max_available_ram();
-    for (i=0; i<gstate.projects.size(); i++) {
-        PROJECT* p = gstate.projects[i];
+    for (auto& p : gstate.projects) {
         bool found = false;
-        for (j=0; j<gstate.results.size(); j++) {
-            RESULT* rp = gstate.results[j];
-            if (rp->project == p && rp->wup->rsc_memory_bound > m) {
+        for (auto& rp : gstate.results) {
+            if (rp->project == p.get() && rp->wup->rsc_memory_bound > m) {
                 found = true;
                 break;
             }
         }
         if (found) {
-            msg_printf(p, MSG_USER_ALERT,
+            msg_printf(p.get(), MSG_USER_ALERT,
                 _("Some tasks need more memory than allowed by your preferences.  Please check the preferences.")
             );
         }
@@ -745,8 +743,7 @@ int CLIENT_STATE::init() {
     // fill in p->no_X_apps for anon platform projects,
     // and check no_rsc_apps for others
     //
-    for (i=0; i<projects.size(); i++) {
-        p = projects[i];
+    for (auto& p : projects) {
         if (p->anonymous_platform) {
             p->check_no_apps();
         } else {
@@ -1553,28 +1550,27 @@ void CLIENT_STATE::print_summary() {
         msg_printf(0, MSG_INFO, "    %s %d", app_versions[i]->app_name, app_versions[i]->version_num);
     }
     msg_printf(0, MSG_INFO, "%d workunits", (int)workunits.size());
-    for (i=0; i<workunits.size(); i++) {
-        msg_printf(0, MSG_INFO, "    %s", workunits[i]->name);
+    for (auto const& wup : workunits) {
+        msg_printf(0, MSG_INFO, "    %s", wup->name);
     }
     msg_printf(0, MSG_INFO, "%d results", (int)results.size());
-    for (i=0; i<results.size(); i++) {
-        msg_printf(0, MSG_INFO, "    %s state:%d", results[i]->name, results[i]->state());
+    for (auto const& rp : results) {
+        msg_printf(0, MSG_INFO, "    %s state:%d", rp->name, rp->state());
     }
     msg_printf(0, MSG_INFO, "%d persistent file xfers", (int)pers_file_xfers->pers_file_xfers.size());
-    for (i=0; i<pers_file_xfers->pers_file_xfers.size(); i++) {
-        const PERS_FILE_XFER* pers_file_xfer = pers_file_xfers->pers_file_xfers[i];
+    for (auto const& pers_file_xfer : pers_file_xfers->pers_file_xfers) {
         msg_printf(0, MSG_INFO, "    %s http op state: %d", pers_file_xfer->fip->name, pers_file_xfer->fxp?pers_file_xfer->fxp->http_op_state:-1);
     }
     msg_printf(0, MSG_INFO, "%d active tasks", (int)active_tasks.active_tasks.size());
-    for (i=0; i<active_tasks.active_tasks.size(); i++) {
-        msg_printf(0, MSG_INFO, "    %s", active_tasks.active_tasks[i]->result->name);
+    for (auto const& atp : active_tasks.active_tasks) {
+        msg_printf(0, MSG_INFO, "    %s", atp->result->name);
     }
 }
 
 int CLIENT_STATE::nresults_for_project(PROJECT* p) {
     int n=0;
-    for (unsigned int i=0; i<results.size(); i++) {
-        if (results[i]->project == p) n++;
+    for (auto const& rp : results) {
+        if (rp->project == p) n++;
     }
     return n;
 }
@@ -2400,8 +2396,7 @@ void CLIENT_STATE::clear_absolute_times() {
     time_stats.last_update = now;
 
     unsigned int i;
-    for (i=0; i<projects.size(); i++) {
-        PROJECT* p = projects[i];
+    for (auto& p : projects) {
         p->min_rpc_time = 0;
         if (p->next_rpc_time) {
             p->next_rpc_time = now;
@@ -2428,19 +2423,18 @@ void CLIENT_STATE::clear_absolute_times() {
 
 void CLIENT_STATE::log_show_projects() {
     char buf[256];
-    for (unsigned int i=0; i<projects.size(); i++) {
-        PROJECT* p = projects[i];
+    for (auto& p : projects) {
         if (p->hostid) {
             snprintf(buf, sizeof(buf), "%d", p->hostid);
         } else {
             safe_strcpy(buf, "not assigned yet");
         }
-        msg_printf(p, MSG_INFO,
+        msg_printf(p.get(), MSG_INFO,
             "URL %s; Computer ID %s; resource share %.0f",
             p->master_url, buf, p->resource_share
         );
         if (p->ended) {
-            msg_printf(p, MSG_INFO, "Project has ended - OK to detach");
+            msg_printf(p.get(), MSG_INFO, "Project has ended - OK to detach");
         }
         p->show_no_work_notice();
     }
@@ -2496,7 +2490,7 @@ bool CLIENT_STATE::abort_sequence_done() {
 // (which can change app version resource usage)
 //
 void CLIENT_STATE::init_result_resource_usage() {
-    for (RESULT* rp: results) {
+    for (auto& rp : results) {
         rp->init_resource_usage();
         if (rp->resource_usage.missing_coproc) {
             msg_printf(rp->project, MSG_INFO,

@@ -222,20 +222,20 @@ FILE_INFO::FILE_INFO() {
     is_project_file = false;
     is_auto_update_file = false;
     anonymous_platform_file = false;
-    pers_file_xfer = NULL;
+    pers_file_xfer.reset();
     project = NULL;
     download_urls.clear();
     upload_urls.clear();
     safe_strcpy(xml_signature, "");
     safe_strcpy(file_signature, "");
-    cert_sigs = 0;
-    async_verify = NULL;
+    cert_sigs.reset();
+    async_verify.reset();
 }
 
 FILE_INFO::~FILE_INFO() {
 #ifndef SIM
     if (async_verify) {
-        remove_async_verify(async_verify);
+        remove_async_verify(async_verify.get());
     }
 #endif
 }
@@ -350,6 +350,9 @@ int FILE_INFO::parse(XML_PARSER& xp) {
             continue;
         }
         if (xp.match_tag("signatures")) {
+            if (!cert_sigs) {
+                cert_sigs = std::unique_ptr<CERT_SIGS>(new CERT_SIGS);
+            }
             if (!cert_sigs->parse(xp)) {
                 msg_printf(0, MSG_INTERNAL_ERROR,
                     "FILE_INFO::parse(): cannot parse <signatures>\n"
@@ -404,16 +407,15 @@ int FILE_INFO::parse(XML_PARSER& xp) {
         if (xp.parse_bool("is_project_file", is_project_file)) continue;
         if (xp.parse_bool("no_delete", btemp)) continue;
         if (xp.match_tag("persistent_file_xfer")) {
-            pfxp = new PERS_FILE_XFER;
+            std::unique_ptr<PERS_FILE_XFER> pfxp(new PERS_FILE_XFER);
             retval = pfxp->parse(xp);
 #ifdef SIM
-            delete pfxp;
+            // pfxp auto-deleted
 #else
             if (!retval) {
-                pers_file_xfer = pfxp;
-            } else {
-                delete pfxp;
+                pers_file_xfer = std::move(pfxp);
             }
+            // else pfxp auto-deleted
 #endif
             continue;
         }

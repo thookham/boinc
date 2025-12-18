@@ -309,7 +309,7 @@ struct PROJECT : PROJ_AM {
 
     // support for replicated trickle-ups
     //
-    std::vector<TRICKLE_UP_OP*> trickle_up_ops;
+    std::vector<std::unique_ptr<TRICKLE_UP_OP>> trickle_up_ops;
 
     // app config stuff
     //

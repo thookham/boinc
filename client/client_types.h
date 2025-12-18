@@ -26,6 +26,8 @@
 #define BOINC_CLIENT_TYPES_H
 
 #include "cpp.h"
+#include <memory>
+
 
 #if !defined(_WIN32) || defined(__CYGWIN32__)
 #include <cstdio>
@@ -124,7 +126,7 @@ struct FILE_INFO {
     bool anonymous_platform_file;
     bool gzip_when_done;
         // for output files: gzip file when done, and append .gz to its name
-    class PERS_FILE_XFER* pers_file_xfer;
+    std::unique_ptr<class PERS_FILE_XFER> pers_file_xfer;
         // nonzero if in the process of being up/downloaded
     PROJECT* project;
     int ref_cnt;
@@ -139,8 +141,8 @@ struct FILE_INFO {
         // this is the signature
     std::string error_msg;
         // if permanent error occurs during file xfer, it's recorded here
-    CERT_SIGS* cert_sigs;
-    ASYNC_VERIFY* async_verify;
+    std::unique_ptr<CERT_SIGS> cert_sigs;
+    std::unique_ptr<ASYNC_VERIFY> async_verify;
 
     FILE_INFO();
     ~FILE_INFO();

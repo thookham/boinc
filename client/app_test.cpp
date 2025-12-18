@@ -84,22 +84,22 @@ void CLIENT_STATE::app_test_init() {}
 // The names and version numbers must match up.
 
 static PROJECT* make_project() {
-    PROJECT *proj = new PROJECT;
+    gstate.projects.push_back(std::make_unique<PROJECT>());
+    PROJECT *proj = gstate.projects.back().get();
     strcpy(proj->project_name, "app_test project");
     strcpy(proj->master_url, "https://app.test/");
     strcpy(proj->_project_dir, "projects/app_test");
     proj->app_test = true;
         // tell the client to use the slots/app_test slot dir for this project
-    gstate.projects.push_back(proj);
     return proj;
 }
 
 static APP* make_app(PROJECT* proj) {
-    APP *app = new APP;
+    gstate.apps.push_back(std::make_unique<APP>());
+    APP *app = gstate.apps.back().get();
     strcpy(app->name, "test_app");
     strcpy(app->user_friendly_name, "test_app");
     app->project = proj;
-    gstate.apps.push_back(app);
     return app;
 }
 
@@ -109,11 +109,12 @@ static APP* make_app(PROJECT* proj) {
 
 // if log_name is NULL, logical name is physical name
 //
-static FILE_REF* make_file(
-    PROJECT *proj, const char* phys_name, const char* log_name,
+static FILE_REF make_file(
+    PROJECT* proj, const char* phys_name, const char* log_name,
     int ftype, bool copy_file
 ) {
-    FILE_INFO *fip = new FILE_INFO;
+    gstate.file_infos.push_back(std::make_unique<FILE_INFO>());
+    FILE_INFO *fip = gstate.file_infos.back().get();
     strcpy(fip->name, phys_name);
     fip->project = proj;
     fip->status = (ftype == OUTPUT_FILE)?FILE_NOT_PRESENT:FILE_PRESENT;
@@ -122,19 +123,19 @@ static FILE_REF* make_file(
         fip->max_nbytes = 1e9;
         fip->upload_urls.add(string("foobar"));
     }
-    gstate.file_infos.push_back(fip);
-    FILE_REF * fref = new FILE_REF;
+    FILE_REF fref;
     if (log_name) {
-        strcpy(fref->open_name, log_name);
+        strcpy(fref.open_name, log_name);
     }
-    fref->file_info = fip;
-    if (ftype == MAIN_PROG) fref->main_program = true;
-    fref->copy_file = copy_file;
+    fref.file_info = fip;
+    if (ftype == MAIN_PROG) fref.main_program = true;
+    fref.copy_file = copy_file;
     return fref;
 }
 
 static APP_VERSION* make_app_version(APP *app) {
-    APP_VERSION *av = new APP_VERSION;
+    gstate.app_versions.push_back(std::make_unique<APP_VERSION>());
+    APP_VERSION *av = gstate.app_versions.back().get();
     strcpy(av->app_name, app->name);
     strcpy(av->api_version, "8.0");
     av->app = app;
@@ -142,12 +143,12 @@ static APP_VERSION* make_app_version(APP *app) {
     av->resource_usage.avg_ncpus = 1;
     av->version_num = 1;
     av->resource_usage.flops = 1e9;
-    gstate.app_versions.push_back(av);
     return av;
 }
 
 static WORKUNIT* make_workunit(APP_VERSION *av) {
-    WORKUNIT *wu = new WORKUNIT;
+    gstate.workunits.push_back(std::make_unique<WORKUNIT>());
+    WORKUNIT *wu = gstate.workunits.back().get();
     APP* app = av->app;
     strcpy(wu->name, "test_wu");
     strcpy(wu->app_name, app->name);
@@ -158,12 +159,12 @@ static WORKUNIT* make_workunit(APP_VERSION *av) {
     wu->rsc_memory_bound = 1e9;
     wu->rsc_disk_bound = 1e9;
     wu->version_num = av->version_num;
-    gstate.workunits.push_back(wu);
     return wu;
 }
 
 static RESULT* make_result(APP_VERSION *av, WORKUNIT* wu) {
-    RESULT *res = new RESULT;
+    gstate.results.push_back(std::make_unique<RESULT>());
+    RESULT *res = gstate.results.back().get();
     strcpy(res->name, "test_result");
     strcpy(res->wu_name, wu->name);
     res->project = av->project;
@@ -171,8 +172,7 @@ static RESULT* make_result(APP_VERSION *av, WORKUNIT* wu) {
     res->wup = wu;
     res->app = av->app;
     res->report_deadline = dtime()+86400;
-    res->_state = RESULT_FILES_DOWNLOADED;
-    gstate.results.push_back(res);
+    res->set_state(RESULT_FILES_DOWNLOADED, "app_test");
     return res;
 }
 
@@ -195,32 +195,32 @@ void CLIENT_STATE::app_test_init() {
 
 #ifdef APP_WSL_WRAPPER
     av->app_files.push_back(
-        *make_file(app->project, "wsl_wrapper.exe", NULL, MAIN_PROG, false)
+        make_file(app->project, "wsl_wrapper.exe", NULL, MAIN_PROG, false)
     );
     av->app_files.push_back(
-        *make_file(app->project, "main", NULL, INPUT_FILE, true)
+        make_file(app->project, "main", NULL, INPUT_FILE, true)
     );
     av->app_files.push_back(
-        *make_file(app->project, "worker", NULL, INPUT_FILE, false)
+        make_file(app->project, "worker", NULL, INPUT_FILE, false)
     );
 #endif
 #ifdef APP_DOCKER_WRAPPER
     av->app_files.push_back(
-        *make_file(app->project, "docker_wrapper", NULL, MAIN_PROG, false)
+        make_file(app->project, "docker_wrapper", NULL, MAIN_PROG, false)
     );
     av->app_files.push_back(
-        *make_file(app->project, "worker", NULL, INPUT_FILE, true)
+        make_file(app->project, "worker", NULL, INPUT_FILE, true)
     );
     av->app_files.push_back(
-        *make_file(app->project, "main.sh", "main.sh", INPUT_FILE, true)
+        make_file(app->project, "main.sh", "main.sh", INPUT_FILE, true)
     );
 #if 0
     av->app_files.push_back(
-        *make_file(app->project, "job.toml", "job.toml", INPUT_FILE, true)
+        make_file(app->project, "job.toml", "job.toml", INPUT_FILE, true)
     );
 #endif
     av->app_files.push_back(
-        *make_file(app->project, "Dockerfile", "Dockerfile", INPUT_FILE, true)
+        make_file(app->project, "Dockerfile", "Dockerfile", INPUT_FILE, true)
     );
 #endif
 
@@ -240,13 +240,13 @@ void CLIENT_STATE::app_test_init() {
 #ifdef APP_WSL_WRAPPER
     //wu->command_line = "--nsecs 60";
     wu->input_files.push_back(
-        *make_file(proj, "infile", "in", INPUT_FILE, false)
+        make_file(proj, "infile", "in", INPUT_FILE, false)
     );
 #endif
 #ifdef APP_DOCKER_WRAPPER
     wu->command_line = "--verbose --nsecs 20";
     wu->input_files.push_back(
-        *make_file(proj, "in", "in", INPUT_FILE, true)
+        make_file(proj, "in", "in", INPUT_FILE, true)
     );
 #endif
     RESULT *result = make_result(av, wu);
@@ -255,12 +255,12 @@ void CLIENT_STATE::app_test_init() {
 
 #ifdef APP_WSL_WRAPPER
     result->output_files.push_back(
-        *make_file(proj, "outfile", "out", OUTPUT_FILE, false)
+        make_file(proj, "outfile", "out", OUTPUT_FILE, false)
     );
 #endif
 #ifdef APP_DOCKER_WRAPPER
     result->output_files.push_back(
-        *make_file(proj, "out", "out", OUTPUT_FILE, true)
+        make_file(proj, "out", "out", OUTPUT_FILE, true)
     );
 #endif
 
