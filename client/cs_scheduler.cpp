@@ -126,7 +126,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
         "    <allow_multiple_clients>%d</allow_multiple_clients>\n"
         "    <sandbox>%d</sandbox>\n"
         "    <dont_send_work>%d</dont_send_work>\n",
-        p->authenticator,
+        p->authenticator.c_str(),
         p->hostid,
         p->rpc_seqno,
         core_client_version.major,
@@ -153,8 +153,8 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
 
     write_platforms(p, mf.f);
 
-    if (strlen(p->code_sign_key)) {
-        fprintf(f, "    <code_sign_key>\n%s\n</code_sign_key>\n", p->code_sign_key);
+    if (!p->code_sign_key.empty()) {
+        fprintf(f, "    <code_sign_key>\n%s\n</code_sign_key>\n", p->code_sign_key.c_str());
     }
 
     // send working prefs
@@ -165,7 +165,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
 
     // send the oldest CPID with email hash
     //
-    USER_CPID* ucp = user_cpids.lookup(p->email_hash);
+    USER_CPID* ucp = user_cpids.lookup(p->email_hash.c_str());
     if (ucp) {
         fprintf(f,
             "<cross_project_id>%s</cross_project_id>\n",
@@ -212,7 +212,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
     unsigned int last_reported_index = 0;
     p->nresults_returned = 0;
     for (i=0; i<results.size(); i++) {
-        rp = results[i];
+        rp = results[i].get();
         if (rp->project == p && rp->ready_to_report) {
             p->nresults_returned++;
             rp->write(mf, true);
@@ -230,7 +230,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
     // report sticky files as needed
     //
     for (i=0; i<file_infos.size(); i++) {
-        FILE_INFO* fip = file_infos[i];
+        FILE_INFO* fip = file_infos[i].get();
         if (fip->project != p) continue;
         if (!fip->sticky) continue;
         fprintf(f,
@@ -239,7 +239,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
             "        <nbytes>%f</nbytes>\n"
             "        <status>%d</status>\n"
             "    </file_info>\n",
-            fip->name, fip->nbytes, fip->status
+            fip->name.c_str(), fip->nbytes, fip->status
         );
     }
 
@@ -260,7 +260,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
     fprintf(f, "<app_versions>\n");
     int j=0;
     for (i=0; i<app_versions.size(); i++) {
-        APP_VERSION* avp = app_versions[i];
+        APP_VERSION* avp = app_versions[i].get();
         if (avp->project != p) continue;
         avp->write(mf, false);
         avp->index = j++;
@@ -271,22 +271,22 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
     //
     fprintf(f, "<other_results>\n");
     for (i=0; i<results.size(); i++) {
-        rp = results[i];
+        rp = results[i].get();
         if (rp->project != p) continue;
         if ((last_reported_index && (i > last_reported_index)) || !rp->ready_to_report) {
             fprintf(f,
                 "    <other_result>\n"
                 "        <name>%s</name>\n"
                 "        <app_version>%d</app_version>\n",
-                rp->name,
+                rp->name.c_str(),
                 rp->avp->index
             );
             // the following is for backwards compatibility w/ old schedulers
             //
-            if (strlen(rp->avp->plan_class)) {
+            if (!rp->avp->plan_class.empty()) {
                 fprintf(f,
                     "        <plan_class>%s</plan_class>\n",
-                    rp->avp->plan_class
+                    rp->avp->plan_class.c_str()
                 );
             }
             fprintf(f,
@@ -302,7 +302,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
     if (p->send_full_workload) {
         fprintf(f, "<in_progress_results>\n");
         for (i=0; i<results.size(); i++) {
-            rp = results[i];
+            rp = results[i].get();
             double x = rp->estimated_runtime_remaining();
             if (x == 0) continue;
             safe_strcpy(buf, "");
@@ -333,7 +333,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
                 "        <avg_ncpus>%f</avg_ncpus>\n"
                 "%s"
                 "    </ip_result>\n",
-                rp->name,
+                rp->name.c_str(),
                 rp->report_deadline,
                 x,
                 rp->resource_usage.avg_ncpus,
@@ -368,7 +368,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
 //
 static inline bool actively_uploading(PROJECT* p) {
     for (unsigned int i=0; i<gstate.file_xfers->file_xfers.size(); i++) {
-        FILE_XFER* fxp = gstate.file_xfers->file_xfers[i];
+        FILE_XFER* fxp = gstate.file_xfers->file_xfers[i].get();
         if (fxp->fip->project != p) continue;
         if (!fxp->is_upload) continue;
         if (gstate.now - fxp->start_time > WF_UPLOAD_DEFER_INTERVAL) continue;
@@ -583,7 +583,7 @@ int CLIENT_STATE::handle_scheduler_reply(
         downcase_string(current_url);
         if (reply_url != current_url) {
             if (is_https_transition(current_url.c_str(), reply_url.c_str())) {
-                strcpy(project->master_url, reply_url.c_str());
+                project->master_url = reply_url;
                 project->write_account_file();
                 msg_printf(project, MSG_INFO,
                     "Project URL changed from http:// to https://"
@@ -612,15 +612,15 @@ int CLIENT_STATE::handle_scheduler_reply(
 
                 // delete account file and write new one
                 //
-                get_account_filename(project->master_url, path, sizeof(path));
+                get_account_filename((char*)project->master_url.c_str(), path, sizeof(path));
                 boinc_delete_file(path);
-                strcpy(project->master_url, reply_url.c_str());
+                project->master_url = reply_url;
                 project->write_account_file();
 
                 // rename project dir
                 //
-                strcpy(project->_project_dir, "");
-                strcpy(path2, project->project_dir());
+                project->_project_dir = "";
+                safe_strcpy(path2, project->project_dir());
                 retval = boinc_rename(old_project_dir, path2);
                 if (retval) {
                     msg_printf(project, MSG_USER_ALERT,
@@ -645,7 +645,7 @@ int CLIENT_STATE::handle_scheduler_reply(
     for (i=0; i<projects.size(); i++) {
         p2 = projects[i];
         if (project == p2) continue;
-        if (!strcmp(p2->project_name, project->project_name)) {
+        if (!strcmp(p2->project_name.c_str(), project->project_name.c_str())) {
             dup_name = true;
             break;
         }
@@ -653,7 +653,7 @@ int CLIENT_STATE::handle_scheduler_reply(
     if (dup_name) {
         msg_printf(project, MSG_INFO,
             "Already attached to a project named %s (possibly with wrong URL)",
-            project->project_name
+            project->project_name.c_str()
         );
         msg_printf(project, MSG_INFO,
             "Consider detaching this project, then trying again"
@@ -662,17 +662,17 @@ int CLIENT_STATE::handle_scheduler_reply(
 
     // update user CPID list
     //
-    if (strlen(project->cross_project_id) && strlen(project->email_hash)) {
-        USER_CPID *ucp = user_cpids.lookup(project->email_hash);
+    if (!project->cross_project_id.empty() && !project->email_hash.empty()) {
+        USER_CPID *ucp = user_cpids.lookup(project->email_hash.c_str());
         if (ucp) {
             if (project->cpid_time < ucp->time) {
-                strcpy(ucp->cpid, project->cross_project_id);
+                strcpy(ucp->cpid, project->cross_project_id.c_str());
                 ucp->time = project->cpid_time;
             }
         } else {
             USER_CPID uc;
-            strcpy(uc.email_hash, project->email_hash);
-            strcpy(uc.cpid, project->cross_project_id);
+            strcpy(uc.email_hash, project->email_hash.c_str());
+            strcpy(uc.cpid, project->cross_project_id.c_str());
             uc.time = project->cpid_time;
             user_cpids.cpids.push_back(uc);
         }
@@ -723,7 +723,7 @@ int CLIENT_STATE::handle_scheduler_reply(
         // ignore prefs if we're using prefs from account mgr
         // BAM! currently has mixed http, https; trim off
         char* p = strchr(global_prefs.source_project, '/');
-        char* q = strchr(gstate.acct_mgr_info.master_url, '/');
+        const char* q = strchr(gstate.acct_mgr_info.master_url.c_str(), '/');
         if (gstate.acct_mgr_info.using_am() && p && q && !strcmp(p, q)) {
             if (log_flags.sched_op_debug) {
                 msg_printf(project, MSG_INFO,
@@ -735,7 +735,7 @@ int CLIENT_STATE::handle_scheduler_reply(
             // and we're talking to an old scheduler
             //
             retval = save_global_prefs(
-                sr.global_prefs_xml, project->master_url, scheduler_url
+                sr.global_prefs_xml, (char*)project->master_url.c_str(), scheduler_url
             );
             if (retval) {
                 return retval;
@@ -754,8 +754,8 @@ int CLIENT_STATE::handle_scheduler_reply(
     // (this must go AFTER the above, since otherwise
     // global_prefs_source_project() is meaningless)
     //
-    if (strcmp(project->host_venue, sr.host_venue)) {
-        safe_strcpy(project->host_venue, sr.host_venue);
+    if (strcmp(project->host_venue.c_str(), sr.host_venue)) {
+        project->host_venue = sr.host_venue;
         msg_printf(project, MSG_INFO, "New computer location: %s", sr.host_venue);
         update_project_prefs = true;
 #ifdef USE_NET_PREFS
@@ -812,16 +812,16 @@ int CLIENT_STATE::handle_scheduler_reply(
     //
 
     if (sr.code_sign_key) {
-        if (!strlen(project->code_sign_key)) {
-            safe_strcpy(project->code_sign_key, sr.code_sign_key);
+        if (project->code_sign_key.empty()) {
+            project->code_sign_key = sr.code_sign_key;
         } else {
             if (sr.code_sign_key_signature) {
                 retval = check_string_signature2(
                     sr.code_sign_key, sr.code_sign_key_signature,
-                    project->code_sign_key, signature_valid
+                    project->code_sign_key.c_str(), signature_valid
                 );
                 if (!retval && signature_valid) {
-                    safe_strcpy(project->code_sign_key, sr.code_sign_key);
+                    project->code_sign_key = sr.code_sign_key;
                 } else {
                     msg_printf(project, MSG_INTERNAL_ERROR,
                         "New code signing key doesn't validate"
@@ -839,11 +839,11 @@ int CLIENT_STATE::handle_scheduler_reply(
     //
     for (i=0; i<sr.apps.size(); i++) {
         APP& checked_app = sr.apps[i];
-        APP* app = lookup_app(project, checked_app.name);
+        APP* app = lookup_app(project, checked_app.name.c_str());
         if (app) {
             // update app attributes; they may have changed on server
             //
-            safe_strcpy(app->user_friendly_name, checked_app.user_friendly_name);
+            app->user_friendly_name = checked_app.user_friendly_name;
             app->non_cpu_intensive = checked_app.non_cpu_intensive;
             app->sporadic = checked_app.sporadic;
             app->fraction_done_exact = checked_app.fraction_done_exact;
@@ -854,7 +854,7 @@ int CLIENT_STATE::handle_scheduler_reply(
             retval = link_app(project, app);
             if (retval) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
-                    "Can't handle application %s in scheduler reply", app->name
+                    "Can't handle application %s in scheduler reply", app->name.c_str()
                 );
                 apps.pop_back();
             }
@@ -862,7 +862,7 @@ int CLIENT_STATE::handle_scheduler_reply(
     }
     FILE_INFO* fip;
     for (i=0; i<sr.file_infos.size(); i++) {
-        fip = lookup_file_info(project, sr.file_infos[i].name);
+        fip = lookup_file_info(project, sr.file_infos[i].name.c_str());
         if (fip) {
             fip->merge_info(sr.file_infos[i]);
         } else {
@@ -875,7 +875,7 @@ int CLIENT_STATE::handle_scheduler_reply(
             retval = link_file_info(project, fip);
             if (retval) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
-                    "Can't handle file %s in scheduler reply", fip->name
+                    "Can't handle file %s in scheduler reply", fip->name.c_str()
                 );
                 file_infos.pop_back();
             }
@@ -887,7 +887,7 @@ int CLIENT_STATE::handle_scheduler_reply(
             if (log_flags.file_xfer_debug) {
                 msg_printf(project, MSG_INFO,
                     "[file_xfer_debug] Got server request to delete file %s",
-                    fip->name
+                    fip->name.c_str()
                 );
             }
             fip->sticky = false;
@@ -901,12 +901,12 @@ int CLIENT_STATE::handle_scheduler_reply(
             continue;
         }
         APP_VERSION& avpp = sr.app_versions[i];
-        if (strlen(avpp.platform) == 0) {
-            safe_strcpy(avpp.platform, get_primary_platform());
+        if (avpp.platform.empty()) {
+            avpp.platform = get_primary_platform();
         } else {
-            if (!is_supported_platform(avpp.platform)) {
+            if (!is_supported_platform(avpp.platform.c_str())) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
-                    "App version has unsupported platform %s", avpp.platform
+                    "App version has unsupported platform %s", avpp.platform.c_str()
                 );
                 continue;
             }
@@ -917,15 +917,15 @@ int CLIENT_STATE::handle_scheduler_reply(
                 avpp.resource_usage.missing_coproc_name
             );
         }
-        APP* app = lookup_app(project, avpp.app_name);
+        APP* app = lookup_app(project, avpp.app_name.c_str());
         if (!app) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "Missing app %s", avpp.app_name
+                "Missing app %s", avpp.app_name.c_str()
             );
             continue;
         }
         APP_VERSION* avp = lookup_app_version(
-            app, avpp.platform, avpp.version_num, avpp.plan_class
+            app, avpp.platform.c_str(), avpp.version_num, avpp.plan_class.c_str()
         );
         if (avp) {
             // don't copy resource usage info from avpp to avp.
@@ -949,7 +949,7 @@ int CLIENT_STATE::handle_scheduler_reply(
         }
     }
     for (i=0; i<sr.workunits.size(); i++) {
-        if (lookup_workunit(project, sr.workunits[i].name)) continue;
+        if (lookup_workunit(project, sr.workunits[i].name.c_str())) continue;
         workunits.push_back(std::make_unique<WORKUNIT>());
         WORKUNIT* wup = workunits.back().get();
         *wup = sr.workunits[i];
@@ -957,7 +957,7 @@ int CLIENT_STATE::handle_scheduler_reply(
         retval = link_workunit(project, wup);
         if (retval) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "Can't handle task %s in scheduler reply", wup->name
+                "Can't handle task %s in scheduler reply", wup->name.c_str()
             );
             workunits.pop_back();
             continue;
@@ -972,7 +972,7 @@ int CLIENT_STATE::handle_scheduler_reply(
     }
     for (i=0; i<sr.results.size(); i++) {
         RESULT& checked_result = sr.results[i];
-        RESULT* rp2 = lookup_result(project, checked_result.name);
+        RESULT* rp2 = lookup_result(project, checked_result.name.c_str());
         if (rp2) {
             // see if project wants to change the job's deadline
             //
@@ -980,7 +980,7 @@ int CLIENT_STATE::handle_scheduler_reply(
                 rp2->report_deadline = checked_result.report_deadline;
             } else {
                 msg_printf(project, MSG_INTERNAL_ERROR,
-                    "Already have task %s\n", checked_result.name
+                    "Already have task %s\n", checked_result.name.c_str()
                 );
             }
             continue;
@@ -991,22 +991,22 @@ int CLIENT_STATE::handle_scheduler_reply(
         retval = link_result(project, rp);
         if (retval) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "Can't handle task %s in scheduler reply", rp->name
+                "Can't handle task %s in scheduler reply", rp->name.c_str()
             );
             results.pop_back();
             continue;
         }
-        if (strlen(rp->platform) == 0) {
-            safe_strcpy(rp->platform, get_primary_platform());
-            rp->version_num = latest_version(rp->wup->app, rp->platform);
+        if (rp->platform.empty()) {
+            rp->platform = get_primary_platform();
+            rp->version_num = latest_version(rp->wup->app, (char*)rp->platform.c_str());
         }
         rp->avp = lookup_app_version(
-            rp->wup->app, rp->platform, rp->version_num, rp->plan_class
+            rp->wup->app, rp->platform.c_str(), rp->version_num, rp->plan_class.c_str()
         );
         if (!rp->avp) {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "No app version found for app %s platform %s ver %d class %s; discarding %s",
-                rp->wup->app->name, rp->platform, rp->version_num, rp->plan_class, rp->name
+                rp->wup->app->name.c_str(), rp->platform.c_str(), rp->version_num, rp->plan_class.c_str(), rp->name.c_str()
             );
             results.pop_back();
             continue;
@@ -1014,7 +1014,7 @@ int CLIENT_STATE::handle_scheduler_reply(
         rp->init_resource_usage();
         if (rp->resource_usage.missing_coproc) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "Missing coprocessor for task %s; aborting", rp->name
+                "Missing coprocessor for task %s; aborting", rp->name.c_str()
             );
             rp->abort_inactive(EXIT_MISSING_COPROC);
         } else {
@@ -1069,15 +1069,15 @@ int CLIENT_STATE::handle_scheduler_reply(
         if (log_flags.sched_op_debug) {
             msg_printf(project, MSG_INFO,
                 "[sched_op] handle_scheduler_reply(): got ack for task %s\n",
-                sr.result_acks[i].name
+                sr.result_acks[i].name.c_str()
             );
         }
-        RESULT* rp = lookup_result(project, sr.result_acks[i].name);
+        RESULT* rp = lookup_result(project, sr.result_acks[i].name.c_str());
         if (rp) {
             rp->got_server_ack = true;
         } else {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "Got ack for task %s, but can't find it", sr.result_acks[i].name
+                "Got ack for task %s, but can't find it", sr.result_acks[i].name.c_str()
             );
         }
     }
@@ -1085,7 +1085,7 @@ int CLIENT_STATE::handle_scheduler_reply(
     // handle result abort requests
     //
     for (i=0; i<sr.result_abort.size(); i++) {
-        RESULT* rp = lookup_result(project, sr.result_abort[i].name);
+        RESULT* rp = lookup_result(project, sr.result_abort[i].name.c_str());
         if (rp) {
             ACTIVE_TASK* atp = lookup_active_task_by_result(rp);
             if (atp) {
@@ -1098,16 +1098,16 @@ int CLIENT_STATE::handle_scheduler_reply(
         } else {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Server requested abort of unknown task %s",
-                sr.result_abort[i].name
+                sr.result_abort[i].name.c_str()
             );
         }
     }
     for (i=0; i<sr.result_abort_if_not_started.size(); i++) {
-        RESULT* rp = lookup_result(project, sr.result_abort_if_not_started[i].name);
+        RESULT* rp = lookup_result(project, sr.result_abort_if_not_started[i].name.c_str());
         if (!rp) {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Server requested conditional abort of unknown task %s",
-                sr.result_abort_if_not_started[i].name
+                sr.result_abort_if_not_started[i].name.c_str()
             );
             continue;
         }
@@ -1235,7 +1235,7 @@ PROJECT* CLIENT_STATE::next_project_master_pending() {
     PROJECT* p;
 
     for (i=0; i<projects.size(); i++) {
-        p = projects[i];
+        p = projects[i].get();
         if (p->waiting_until_min_rpc_time()) continue;
         if (p->suspended_via_gui) continue;
         if (p->master_url_fetch_pending) {
@@ -1256,7 +1256,7 @@ PROJECT* CLIENT_STATE::next_project_sched_rpc_pending() {
     PROJECT* p;
 
     for (i=0; i<projects.size(); i++) {
-        p = projects[i];
+        p = projects[i].get();
         bool honor_backoff = true;
         bool honor_suspend = true;
 
@@ -1307,7 +1307,7 @@ PROJECT* CLIENT_STATE::next_project_trickle_up_pending() {
     PROJECT* p;
 
     for (i=0; i<projects.size(); i++) {
-        p = projects[i];
+        p = projects[i].get();
         if (p->waiting_until_min_rpc_time()) continue;
         if (p->suspended_via_gui) continue;
         if (p->trickle_up_pending) {
@@ -1347,7 +1347,7 @@ PROJECT* CLIENT_STATE::find_project_with_overdue_results(
     }
 
     for (i=0; i<results.size(); i++) {
-        r = results[i];
+        r = results[i].get();
         if (!r->ready_to_report) continue;
 
         PROJECT* p = r->project;

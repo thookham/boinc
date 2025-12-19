@@ -103,8 +103,8 @@ struct URL_LIST {
 };
 
 struct FILE_INFO {
-    char name[256];         // physical name
-    char md5_cksum[MD5_LEN];
+    std::string name;         // physical name
+    std::string md5_cksum;
     double max_nbytes;
     double nbytes;
     double gzipped_nbytes;  // defined if download_gzipped is true
@@ -134,9 +134,9 @@ struct FILE_INFO {
     URL_LIST upload_urls;
     bool download_gzipped;
         // if set, download NAME.gz and gunzip it to NAME
-    char xml_signature[MAX_SIGNATURE_LEN];
+    std::string xml_signature;
         // the upload signature
-    char file_signature[MAX_SIGNATURE_LEN];
+    std::string file_signature;
         // if the file itself is signed (for executable files)
         // this is the signature
     std::string error_msg;
@@ -178,9 +178,9 @@ struct FILE_INFO {
 // Describes a connection between a file and a workunit, result, or app version
 //
 struct FILE_REF {
-    char file_name[256];
+    std::string file_name;
         // physical name; should match file_info->name
-    char open_name[256];
+    std::string open_name;
         // logical name
     bool main_program;
     FILE_INFO* file_info;
@@ -190,8 +190,8 @@ struct FILE_REF {
         // for output files: app may not generate file;
         // don't treat as error if file is missing.
     inline void clear() {
-        safe_strcpy(file_name, "");
-        safe_strcpy(open_name, "");
+        file_name.clear();
+        open_name.clear();
         main_program = false;
         file_info = NULL;
         copy_file = false;
@@ -262,22 +262,22 @@ bool operator < (const DAILY_STATS&, const DAILY_STATS&);
 // base class for PROJECT and ACCT_MGR_INFO
 //
 struct PROJ_AM {
-    char master_url[256];
-    char project_name[256];
+    std::string master_url;
+    std::string project_name;
         // descriptive.  not unique
     std::vector<RSS_FEED> proj_feeds;
-    inline char *get_project_name() {
-        if (strlen(project_name)) {
-            return project_name;
+    inline const char* get_project_name() {
+        if (!project_name.empty()) {
+            return project_name.c_str();
         } else {
-            return master_url;
+            return master_url.c_str();
         }
     }
 };
 
 struct APP {
-    char name[256];
-    char user_friendly_name[256];
+    std::string name;
+    std::string user_friendly_name;
     bool non_cpu_intensive;
     bool sporadic;
     bool fraction_done_exact;
@@ -342,13 +342,13 @@ struct RESOURCE_USAGE {
 // if you add anything, initialize it in init()
 //
 struct APP_VERSION {
-    char app_name[256];
+    std::string app_name;
     int version_num;
-    char platform[256];
-    char plan_class[64];
-    char api_version[16];
+    std::string platform;
+    std::string plan_class;
+    std::string api_version;
     RESOURCE_USAGE resource_usage;
-    char file_prefix[256];
+    std::string file_prefix;
         // prepend this to input/output file logical names
         // (e.g. "share" for VM apps)
     bool needs_network;
@@ -365,8 +365,8 @@ struct APP_VERSION {
     // the strings are filled in after exec is downloaded and verified
     //
     FILE_INFO *graphics_exec_fip;
-    char graphics_exec_path[MAXPATHLEN];
-    char graphics_exec_file[256];
+    std::string graphics_exec_path;
+    std::string graphics_exec_file;
 
     double max_working_set_size;
         // max working set of tasks using this app version.
@@ -404,21 +404,21 @@ struct APP_VERSION {
     //    return resource_usage.rsc_type;
     //}
     inline bool is_opencl() {
-        return (strstr(plan_class, "opencl") != NULL);
+        return (plan_class.find("opencl") != std::string::npos);
     }
     void check_graphics_exec();
 };
 
 struct WORKUNIT {
-    char name[256];
-    char app_name[256];
+    std::string name;
+    std::string app_name;
     int version_num;
         // Deprecated, but need to keep around to let people revert
         // to versions before multi-platform support
 
     // the following for BUDA jobs
-    char sub_appname[256];
-    char plan_class[256];
+    std::string sub_appname;
+    std::string plan_class;
         // the BUDA variant
     bool has_resource_usage;
     RESOURCE_USAGE resource_usage;
@@ -435,12 +435,12 @@ struct WORKUNIT {
     JOB_KEYWORD_IDS job_keyword_ids;
 
     WORKUNIT(){
-        name[0] = 0;
-        app_name[0] = 0;
+        name.clear();
+        app_name.clear();
         version_num = 0;
         has_resource_usage = false;
-        sub_appname[0] = 0;
-        plan_class[0] = 0;
+        sub_appname.clear();
+        plan_class.clear();
         resource_usage.clear();
         command_line.clear();
         input_files.clear();
@@ -486,12 +486,12 @@ struct PLATFORM {
 // the oldest CPID for a given email hash
 //
 struct USER_CPID {
-    char email_hash[MD5_LEN];
-    char cpid[MD5_LEN];
+    std::string email_hash;
+    std::string cpid;
     double time;
     inline void clear() {
-        strcpy(email_hash, "");
-        strcpy(cpid, "");
+        email_hash.clear();
+        cpid.clear();
         time = 0;
     }
     int parse(XML_PARSER&);

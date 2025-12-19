@@ -33,10 +33,10 @@ PROJECT::PROJECT() {
 }
 
 void PROJECT::init() {
-    safe_strcpy(master_url, "");
-    safe_strcpy(authenticator, "");
-    safe_strcpy(_project_dir, "");
-    safe_strcpy(_project_dir_absolute, "");
+    master_url.clear();
+    authenticator.clear();
+    _project_dir.clear();
+    _project_dir_absolute.clear();
     project_specific_prefs.clear();
     gui_urls.clear();
     resource_share = 100;
@@ -52,16 +52,16 @@ void PROJECT::init() {
         no_rsc_ams[i] = false;
         sched_req_no_work[i] = false;
     }
-    safe_strcpy(host_venue, "");
+    host_venue.clear();
     using_venue_specific_prefs = false;
     scheduler_urls.clear();
-    safe_strcpy(project_name, "");
-    safe_strcpy(symstore, "");
-    safe_strcpy(user_name, "");
-    safe_strcpy(team_name, "");
-    safe_strcpy(email_hash, "");
-    safe_strcpy(cross_project_id, "");
-    safe_strcpy(external_cpid, "");
+    project_name.clear();
+    symstore.clear();
+    user_name.clear();
+    team_name.clear();
+    email_hash.clear();
+    cross_project_id.clear();
+    external_cpid.clear();
     cpid_time = 0;
     user_total_credit = 0;
     user_expavg_credit = 0;
@@ -99,7 +99,7 @@ void PROJECT::init() {
     detach_when_done = false;
     attached_via_acct_mgr = false;
     ended = false;
-    safe_strcpy(code_sign_key, "");
+    code_sign_key.clear();
     user_files.clear();
     project_files.clear();
     next_runnable_result = NULL;
@@ -204,15 +204,15 @@ int PROJECT::parse_state(XML_PARSER& xp) {
             scheduler_urls.push_back(sched_url);
             continue;
         }
-        if (xp.parse_str("master_url", master_url, sizeof(master_url))) continue;
-        if (xp.parse_str("project_name", project_name, sizeof(project_name))) continue;
-        if (xp.parse_str("symstore", symstore, sizeof(symstore))) continue;
-        if (xp.parse_str("user_name", user_name, sizeof(user_name))) continue;
-        if (xp.parse_str("team_name", team_name, sizeof(team_name))) continue;
-        if (xp.parse_str("host_venue", host_venue, sizeof(host_venue))) continue;
-        if (xp.parse_str("email_hash", email_hash, sizeof(email_hash))) continue;
-        if (xp.parse_str("cross_project_id", cross_project_id, sizeof(cross_project_id))) continue;
-        if (xp.parse_str("external_cpid", external_cpid, sizeof(external_cpid))) continue;
+        if (xp.parse_string("master_url", master_url)) continue;
+        if (xp.parse_string("project_name", project_name)) continue;
+        if (xp.parse_string("symstore", symstore)) continue;
+        if (xp.parse_string("user_name", user_name)) continue;
+        if (xp.parse_string("team_name", team_name)) continue;
+        if (xp.parse_string("host_venue", host_venue)) continue;
+        if (xp.parse_string("email_hash", email_hash)) continue;
+        if (xp.parse_string("cross_project_id", cross_project_id)) continue;
+        if (xp.parse_string("external_cpid", external_cpid)) continue;
         if (xp.parse_double("cpid_time", cpid_time)) continue;
         if (xp.parse_double("user_total_credit", user_total_credit)) continue;
         if (xp.parse_double("user_expavg_credit", user_expavg_credit)) continue;
@@ -225,12 +225,7 @@ int PROJECT::parse_state(XML_PARSER& xp) {
         if (xp.parse_double("host_expavg_credit", host_expavg_credit)) continue;
         if (xp.parse_double("host_create_time", host_create_time)) continue;
         if (xp.match_tag("code_sign_key")) {
-            retval = copy_element_contents(
-                xp.f->f,
-                "</code_sign_key>",
-                code_sign_key,
-                sizeof(code_sign_key)
-            );
+            retval = copy_element_contents(xp.f->f, "</code_sign_key>", code_sign_key);
             if (retval) return retval;
             strip_whitespace(code_sign_key);
             continue;
@@ -380,13 +375,13 @@ int PROJECT::write_state(MIOFILE& out, bool gui_rpc) {
     if (gstate.acct_mgr_info.using_am()
         && attached_via_acct_mgr
         && gstate.acct_mgr_info.dynamic
-        && strlen(gstate.acct_mgr_info.user_name)
+        && !gstate.acct_mgr_info.user_name.empty()
     ) {
-        xml_escape(gstate.acct_mgr_info.user_name, un, sizeof(un));
-        xml_escape(gstate.acct_mgr_info.team_name, tn, sizeof(tn));
+        xml_escape(gstate.acct_mgr_info.user_name.c_str(), un, sizeof(un));
+        xml_escape(gstate.acct_mgr_info.team_name.c_str(), tn, sizeof(tn));
     } else {
-        xml_escape(user_name, un, sizeof(un));
-        xml_escape(team_name, tn, sizeof(tn));
+        xml_escape(user_name.c_str(), un, sizeof(un));
+        xml_escape(team_name.c_str(), tn, sizeof(tn));
     }
     out.printf(
         "    <master_url>%s</master_url>\n"
@@ -428,15 +423,15 @@ int PROJECT::write_state(MIOFILE& out, bool gui_rpc) {
         "    <elapsed_time>%f</elapsed_time>\n"
         "    <last_rpc_time>%f</last_rpc_time>\n"
         "%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-        master_url,
-        project_name,
-        symstore,
+        master_url.c_str(),
+        project_name.c_str(),
+        symstore.c_str(),
         un,
         tn,
-        host_venue,
-        email_hash,
-        cross_project_id,
-        external_cpid,
+        host_venue.c_str(),
+        email_hash.c_str(),
+        cross_project_id.c_str(),
+        external_cpid.c_str(),
         cpid_time,
         user_total_credit,
         user_expavg_credit,
@@ -532,8 +527,8 @@ int PROJECT::write_state(MIOFILE& out, bool gui_rpc) {
                 upload_backoff.next_xfer_time - gstate.now
             );
         }
-        if (strlen(host_venue)) {
-            out.printf("    <venue>%s</venue>\n", host_venue);
+        if (!host_venue.empty()) {
+            out.printf("    <venue>%s</venue>\n", host_venue.c_str());
         }
         out.printf("    <project_dir>%s</project_dir>\n", project_dir_absolute());
     } else {
@@ -543,9 +538,9 @@ int PROJECT::write_state(MIOFILE& out, bool gui_rpc) {
                 scheduler_urls[i].c_str()
             );
         }
-        if (strlen(code_sign_key)) {
+        if (!code_sign_key.empty()) {
             out.printf(
-                "    <code_sign_key>\n%s\n</code_sign_key>\n", code_sign_key
+                "    <code_sign_key>\n%s\n</code_sign_key>\n", code_sign_key.c_str()
             );
         }
         for (i=0; i<trickle_up_ops.size(); i++) {
@@ -574,14 +569,14 @@ int PROJECT::write_state(MIOFILE& out, bool gui_rpc) {
 //
 void PROJECT::copy_state_fields(PROJECT& p) {
     scheduler_urls = p.scheduler_urls;
-    safe_strcpy(master_url, p.master_url);      // client_state.xml is authoritative
-    safe_strcpy(project_name, p.project_name);
-    safe_strcpy(user_name, p.user_name);
-    safe_strcpy(team_name, p.team_name);
-    safe_strcpy(host_venue, p.host_venue);
-    safe_strcpy(email_hash, p.email_hash);
-    safe_strcpy(cross_project_id, p.cross_project_id);
-    safe_strcpy(external_cpid, p.external_cpid);
+    master_url = p.master_url;      // client_state.xml is authoritative
+    project_name = p.project_name;
+    user_name = p.user_name;
+    team_name = p.team_name;
+    host_venue = p.host_venue;
+    email_hash = p.email_hash;
+    cross_project_id = p.cross_project_id;
+    external_cpid = p.external_cpid;
     user_total_credit = p.user_total_credit;
     user_expavg_credit = p.user_expavg_credit;
     user_create_time = p.user_create_time;
@@ -600,7 +595,7 @@ void PROJECT::copy_state_fields(PROJECT& p) {
     master_url_fetch_pending = p.master_url_fetch_pending;
     sched_rpc_pending = p.sched_rpc_pending;
     trickle_up_pending = p.trickle_up_pending;
-    safe_strcpy(code_sign_key, p.code_sign_key);
+    code_sign_key = p.code_sign_key;
     for (int i=0; i<MAX_RSC; i++) {
         rsc_pwf[i] = p.rsc_pwf[i];
         no_rsc_pref[i] = p.no_rsc_pref[i];
@@ -643,7 +638,7 @@ int PROJECT::write_statistics(MIOFILE& out) {
     out.printf(
         "<project_statistics>\n"
         "    <master_url>%s</master_url>\n",
-        master_url
+        master_url.c_str()
     );
 
     for (vector<DAILY_STATS>::iterator i=statistics.begin();
@@ -933,19 +928,23 @@ void PROJECT::trim_statistics() {
 }
 
 const char* PROJECT::project_dir() {
-    if (_project_dir[0] == 0) {
+    if (_project_dir.empty()) {
         char buf[1024];
-        escape_project_url(master_url, buf);
-        snprintf(_project_dir, sizeof(_project_dir), "%s/%s", PROJECTS_DIR, buf);
+        escape_project_url(master_url.c_str(), buf);
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/%s", PROJECTS_DIR, buf);
+        _project_dir = path;
     }
-    return _project_dir;
+    return _project_dir.c_str();
 }
 
 const char* PROJECT::project_dir_absolute() {
-    if (_project_dir_absolute[0] == 0) {
-        relative_to_absolute(project_dir(), _project_dir_absolute);
+    if (_project_dir_absolute.empty()) {
+        char path[MAXPATHLEN];
+        relative_to_absolute(project_dir(), path);
+        _project_dir_absolute = path;
     }
-    return _project_dir_absolute;
+    return _project_dir_absolute.c_str();
 }
 
 // If no_rsc_apps flags are set for all resource types, something's wrong;

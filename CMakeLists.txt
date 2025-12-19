@@ -15,6 +15,11 @@ find_package(CURL REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(SQLite3 REQUIRED)
+find_package(libzip CONFIG REQUIRED)
+find_package(Threads REQUIRED)
+find_package(GTest REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(OpenCL REQUIRED)
 
 # Options
 option(BOINC_BUILD_CLIENT "Build the BOINC Client" ON)
@@ -31,10 +36,15 @@ include_directories(
 
 # Subdirectories
 add_subdirectory(lib)
-# add_subdirectory(client) # TODO: Port client
+add_subdirectory(zip)
+
+if(BOINC_BUILD_CLIENT)
+    add_subdirectory(client)
+endif()
+
 # add_subdirectory(apps)   # TODO: Port apps
 
 if(BOINC_BUILD_TESTS)
     enable_testing()
-    add_subdirectory(tests)
+    add_subdirectory(tests/unit-tests)
 endif()

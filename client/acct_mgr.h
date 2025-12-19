@@ -48,16 +48,16 @@ struct ACCT_MGR_INFO : PROJ_AM {
     // So we added the option of using a random-string authenticator.
     // If this is present, use it rather than name/passwd.
     //
-    char login_name[256];   // unique name (could be email addr)
-    char user_name[256];    // non-unique name
-    char team_name[256];
-    char password_hash[256];
+    std::string login_name;   // unique name (could be email addr)
+    std::string user_name;    // non-unique name
+    std::string team_name;
+    std::string password_hash;
         // md5 of password.lowercase(login_name)
-    char authenticator[256];
-    char opaque[256];
+    std::string authenticator;
+    std::string opaque;
         // opaque data, from the AM, to be included in future AM requests
-    char signing_key[MAX_KEY_LEN];
-    char previous_host_cpid[64];
+    std::string signing_key;
+    std::string previous_host_cpid;
         // the host CPID sent in last RPC
     double next_rpc_time;
     int nfailures;
@@ -74,7 +74,7 @@ struct ACCT_MGR_INFO : PROJ_AM {
         // use of cookies are required during initial signup
         // NOTE: This bool gets dropped after the client has
         //   successfully attached to an account manager
-    char cookie_failure_url[256];
+    std::string cookie_failure_url;
         // if the cookies could not be detected, provide a
         // link to a website to go to so the user can find
         // what login name and password they have been assigned
@@ -98,17 +98,17 @@ struct ACCT_MGR_INFO : PROJ_AM {
     double starved_rpc_min_time;    // earliest time to do a starved RPC
 
     inline bool using_am() {
-        if (!strlen(master_url)) return false;
-        if (strlen(authenticator)) return true;
-        if (!strlen(login_name)) return false;
-        if (!strlen(password_hash)) return false;
+        if (master_url.empty()) return false;
+        if (!authenticator.empty()) return true;
+        if (login_name.empty()) return false;
+        if (password_hash.empty()) return false;
         return true;
     }
     inline bool same_am(const char* mu, const char* ln, const char* ph, const char* auth) {
-        if (strcmp(mu, master_url)) return false;
-        if (!strcmp(auth, authenticator)) return true;
-        if (strcmp(ln, login_name)) return false;
-        if (strcmp(ph, password_hash)) return false;
+        if (master_url != mu) return false;
+        if (authenticator == auth) return true;
+        if (login_name != ln) return false;
+        if (password_hash != ph) return false;
         return true;
     }
     inline bool get_no_project_notices() {
@@ -146,7 +146,7 @@ struct AM_ACCOUNT {
     std::string url;
     std::string authenticator;
 
-    char url_signature[MAX_SIGNATURE_LEN];
+    std::string url_signature;
     bool detach;
     bool update;
     bool no_rsc[MAX_RSC];
@@ -160,7 +160,7 @@ struct AM_ACCOUNT {
     void handle_no_rsc(const char*, bool);
     int parse(XML_PARSER&);
     AM_ACCOUNT() {
-        safe_strcpy(url_signature, "");
+        url_signature.clear();
         detach = false;
         update = false;
         dont_request_more_work.init();
@@ -182,7 +182,7 @@ struct ACCT_MGR_OP: public GUI_HTTP_OP {
     std::vector<AM_ACCOUNT> accounts;
     double repeat_sec;
     std::string global_prefs_xml;
-    char host_venue[256];
+    std::string host_venue;
     bool got_rss_feeds;
     std::vector<RSS_FEED>rss_feeds;
 
@@ -196,7 +196,7 @@ struct ACCT_MGR_OP: public GUI_HTTP_OP {
         error_num = BOINC_SUCCESS;
         repeat_sec = 60.0;
         global_prefs_xml.clear();
-        safe_strcpy(host_venue, "");
+        host_venue.clear();
         got_rss_feeds = false;
     }
     virtual ~ACCT_MGR_OP(){}

@@ -51,6 +51,7 @@ using std::vector;
 #include "net_stats.h"
 #include "pers_file_xfer.h"
 #include "prefs.h"
+#include "auto_update.h"
 #include "project_list.h"
 #include "scheduler_op.h"
 #include "time_stats.h"
@@ -279,7 +280,7 @@ struct CLIENT_STATE {
     RESULT* lookup_result(PROJECT*, const char*);
     WORKUNIT* lookup_workunit(PROJECT*, const char*);
     APP_VERSION* lookup_app_version(
-        APP*, char* platform, int ver, char* plan_class
+        APP*, const char* platform, int ver, const char* plan_class
     );
     int detach_project(PROJECT*);
     int report_result_error(RESULT&, const char* err_msg);

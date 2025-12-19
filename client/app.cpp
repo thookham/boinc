@@ -125,8 +125,8 @@ ACTIVE_TASK::ACTIVE_TASK() {
     bytes_received_episode = 0;
     bytes_sent = 0;
     bytes_received = 0;
-    safe_strcpy(slot_dir, "");
-    safe_strcpy(slot_path, "");
+    slot_dir = "";
+    slot_path = "";
     max_elapsed_time = 0;
     max_disk_usage = 0;
     max_mem_usage = 0;
@@ -147,8 +147,8 @@ ACTIVE_TASK::ACTIVE_TASK() {
     premature_exit_count = 0;
     overdue_checkpoint = false;
     last_deadline_miss_time = 0;
-    safe_strcpy(web_graphics_url, "");
-    safe_strcpy(remote_desktop_addr, "");
+    web_graphics_url = "";
+    remote_desktop_addr = "";
     async_copy = NULL;
     finish_file_time = 0;
     sporadic_ca_state = CA_NONE;
@@ -295,8 +295,11 @@ int ACTIVE_TASK::init(RESULT* rp) {
     }
     max_disk_usage = rp->wup->rsc_disk_bound;
     max_mem_usage = rp->wup->rsc_memory_bound;
-    get_slot_dir(slot, slot_dir, sizeof(slot_dir));
-    relative_to_absolute(slot_dir, slot_path);
+    char slot_dir_buf[MAXPATHLEN], slot_path_buf[MAXPATHLEN];
+    get_slot_dir(slot, slot_dir_buf, sizeof(slot_dir_buf));
+    relative_to_absolute(slot_dir_buf, slot_path_buf);
+    slot_dir = slot_dir_buf;
+    slot_path = slot_path_buf;
     return 0;
 }
 #endif
@@ -405,7 +408,7 @@ void ACTIVE_TASK_SET::get_memory_usage() {
         if (atp->other_pids.size()>0) {
             v = &(atp->other_pids);
         }
-        procinfo_app(pi, v, pm, atp->app_version->graphics_exec_file);
+        procinfo_app(pi, v, pm, (char*)atp->app_version->graphics_exec_file.c_str());
         if (atp->app_version->is_vbox_app) {
             vbox_app_running = true;
             // the memory of virtual machine apps is not reported correctly,
@@ -645,11 +648,11 @@ int ACTIVE_TASK::move_trickle_file() {
 
     snprintf(old_path, sizeof(old_path),
         "%s/trickle_up.xml",
-        slot_dir
+        slot_dir.c_str()
     );
     snprintf(new_path, sizeof(new_path),
         "%s/trickle_up_%s_%d.xml",
-        result->project->project_dir(), result->name, (int)time(0)
+        result->project->project_dir(), result->name.c_str(), (int)time(0)
     );
     retval = boinc_rename(old_path, new_path);
 
@@ -671,7 +674,7 @@ int ACTIVE_TASK::current_disk_usage(double& size) {
     FILE_INFO* fip;
     char path[MAXPATHLEN];
 
-    retval = dir_size(slot_dir, size);
+    retval = dir_size(slot_dir.c_str(), size);
     if (retval) return retval;
     for (i=0; i<result->output_files.size(); i++) {
         fip = result->output_files[i].file_info;
@@ -876,25 +879,25 @@ int ACTIVE_TASK::write_gui(MIOFILE& fout) {
     // only report a graphics app if file exists and we can execute it
     //
     app_version->check_graphics_exec();
-    if (strlen(app_version->graphics_exec_path)) {
+    if (!app_version->graphics_exec_path.empty()) {
         fout.printf(
             "   <graphics_exec_path>%s</graphics_exec_path>\n"
             "   <slot_path>%s</slot_path>\n",
-            app_version->graphics_exec_path,
+            app_version->graphics_exec_path.c_str(),
             slot_path
         );
     }
 
-    if (strlen(web_graphics_url)) {
+    if (!web_graphics_url.empty()) {
         fout.printf(
             "   <web_graphics_url>%s</web_graphics_url>\n",
-            web_graphics_url
+            web_graphics_url.c_str()
         );
     }
-    if (strlen(remote_desktop_addr)) {
+    if (!remote_desktop_addr.empty()) {
         fout.printf(
             "   <remote_desktop_addr>%s</remote_desktop_addr>\n",
-            remote_desktop_addr
+            remote_desktop_addr.c_str()
         );
     }
     fout.printf("</active_task>\n");
@@ -945,14 +948,14 @@ int ACTIVE_TASK::parse(XML_PARSER& xp) {
 
             wup = result->wup;
             app_version = gstate.lookup_app_version(
-                result->app, result->platform, result->version_num,
-                result->plan_class
+                result->app, result->platform.c_str(), result->version_num,
+                result->plan_class.c_str()
             );
             if (!app_version) {
                 msg_printf(
                     project, MSG_INTERNAL_ERROR,
                     "State file error: app %s platform %s version %d not found\n",
-                    result->app->name, result->platform, result->version_num
+                    result->app->name.c_str(), result->platform.c_str(), result->version_num
                 );
                 return ERR_NULL;
             }
@@ -1194,10 +1197,12 @@ int ACTIVE_TASK::handle_upload_files() {
             FILE_INFO* fip = result->lookup_file_logical(p);
             if (fip) {
                 get_pathname(fip, path, sizeof(path));
-                retval = md5_file(path, fip->md5_cksum, fip->nbytes);
+                char md5_buf[64];
+                retval = md5_file(path, md5_buf, fip->nbytes);
                 if (retval) {
                     fip->status = retval;
                 } else {
+                    fip->md5_cksum = md5_buf;
                     fip->status = FILE_PRESENT;
                 }
             } else {
@@ -1239,7 +1244,7 @@ void ACTIVE_TASK::upload_notify_app(const FILE_INFO* fip, const FILE_REF* frp) {
     char path[MAXPATHLEN];
     snprintf(path, sizeof(path),
         "%s/%s%s",
-        slot_dir, UPLOAD_FILE_STATUS_PREFIX, frp->open_name
+        slot_dir, UPLOAD_FILE_STATUS_PREFIX, frp->open_name.c_str()
     );
     FILE* f = boinc_fopen(path, "w");
     if (!f) return;

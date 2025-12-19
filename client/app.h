@@ -47,6 +47,19 @@ enum PREEMPT_TYPE {
 struct ASYNC_COPY;
 typedef int PROCESS_ID;
 
+// Graphics message for client-app communication
+struct GRAPHICS_MSG {
+    int mode;
+    char window_station[256];
+    char desktop[256];
+    char display[256];
+    GRAPHICS_MSG() : mode(0) {
+        window_station[0] = 0;
+        desktop[0] = 0;
+        display[0] = 0;
+    }
+};
+
 #define MAX_STDERR_LEN  65536
     // The stderr output of an application is truncated to this length
     // before sending to server,
@@ -135,9 +148,9 @@ struct ACTIVE_TASK {
     double bytes_sent;
         // bytes in all episodes
     double bytes_received;
-    char slot_dir[256];
+    std::string slot_dir;
         // directory where process runs (relative)
-    char slot_path[MAXPATHLEN];
+    std::string slot_path;
         // same, absolute
         // This is used only to run graphics apps
         // (that way don't have to worry about top-level dirs
@@ -184,8 +197,11 @@ struct ACTIVE_TASK {
         // but not descendants of the main process
         // (e.g. VMs created by vboxwrapper)
         // These are communicated via the app_status message channel
-    char web_graphics_url[256];
-    char remote_desktop_addr[256];
+    std::string web_graphics_url;
+    std::string remote_desktop_addr;
+    int graphics_mode_acked;
+    int graphics_mode_before_ss;
+    GRAPHICS_MSG graphics_msg;
     ASYNC_COPY* async_copy;
     double finish_file_time;
         // time when we saw finish file in slot dir.
@@ -329,6 +345,9 @@ struct ACTIVE_TASK {
     bool must_copy_file(FILE_REF&, bool);
     void write_task_state_file();
     void read_task_state_file();
+    void request_graphics_mode(GRAPHICS_MSG&);
+    void check_graphics_mode_ack();
+    bool supports_graphics();
 
     int write(MIOFILE&);
     int write_gui(MIOFILE&);
@@ -346,6 +365,7 @@ public:
     ACTIVE_TASK* lookup_slot(int);
     void init();
     bool poll();
+    void graphics_poll();
     void suspend_all(int reason);
     void unsuspend_all(int reason=0);
     bool is_task_executing();
@@ -391,5 +411,7 @@ extern DWORD WINAPI throttler(void*);
 #else
 extern void* throttler(void*);
 #endif
+
+extern const char* xml_graphics_modes[];
 
 #endif

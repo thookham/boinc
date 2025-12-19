@@ -59,8 +59,8 @@ int PROJECT::write_account_file() {
     char path[MAXPATHLEN];
     FILE* f;
     int retval;
-
-    get_account_filename(master_url, path, sizeof(path));
+    
+    get_account_filename(master_url.c_str(), path, sizeof(path));
     f = boinc_fopen(TEMP_ACCT_FILE_NAME, "w");
     if (!f) return ERR_FOPEN;
 
@@ -68,14 +68,14 @@ int PROJECT::write_account_file() {
         "<account>\n"
         "    <master_url>%s</master_url>\n"
         "    <authenticator>%s</authenticator>\n",
-        master_url,
-        authenticator
+        master_url.c_str(),
+        authenticator.c_str()
     );
     // put project name in account file for informational purposes only
     // (client state file is authoritative)
     //
-    if (strlen(project_name)) {
-        fprintf(f, "    <project_name>%s</project_name>\n", project_name);
+    if (!project_name.empty()) {
+        fprintf(f, "    <project_name>%s</project_name>\n", project_name.c_str());
     }
     fprintf(f, "<project_preferences>\n%s</project_preferences>\n",
         project_prefs.c_str()
@@ -111,8 +111,8 @@ int PROJECT::parse_account(FILE* in) {
     XML_PARSER xp(&mf);
     mf.init_file(in);
 
-    safe_strcpy(master_url, "");
-    safe_strcpy(authenticator, "");
+    master_url = "";
+    authenticator = "";
     while (!xp.get_tag()) {
         if (xp.match_tag("account")) continue;
         if (xp.match_tag("project_preferences")) {
@@ -130,10 +130,13 @@ int PROJECT::parse_account(FILE* in) {
             retval = copy_element_contents(xp.f->f, "</venue>", devnull);
             if (retval) return retval;
             continue;
-        } else if (xp.parse_str("master_url", master_url, sizeof(master_url))) {
-            canonicalize_master_url(master_url, sizeof(master_url));
+        } else if (xp.parse_string("master_url", master_url)) {
+            char buf[256];
+            safe_strcpy(buf, master_url.c_str());
+            canonicalize_master_url(buf, sizeof(buf));
+            master_url = buf;
             continue;
-        } else if (xp.parse_str("authenticator", authenticator, sizeof(authenticator))) continue;
+        } else if (xp.parse_string("authenticator", authenticator)) continue;
         else if (xp.parse_double("resource_share", dtemp)) {
             if (ams_resource_share < 0) {
                 resource_share = dtemp;
@@ -163,7 +166,7 @@ int PROJECT::parse_account(FILE* in) {
             handle_no_rsc_pref(this, buf2);
             continue;
         }
-        else if (xp.parse_str("project_name", project_name, sizeof(project_name))) continue;
+        else if (xp.parse_string("project_name", project_name)) continue;
         else if (xp.match_tag("gui_urls")) {
             string foo;
             retval = copy_element_contents(xp.f->f, "</gui_urls>", foo);
@@ -205,7 +208,7 @@ int PROJECT::parse_account_file_venue() {
     bool in_right_venue = false, btemp;
     double dtemp;
 
-    get_account_filename(master_url, path, sizeof(path));
+    get_account_filename(master_url.c_str(), path, sizeof(path));
     FILE* in = boinc_fopen(path, "r");
     if (!in) return ERR_FOPEN;
 
@@ -219,7 +222,7 @@ int PROJECT::parse_account_file_venue() {
             return 0;
         } else if (xp.match_tag("venue")) {
             parse_attr(attr_buf, "name", venue, sizeof(venue));
-            if (!strcmp(venue, host_venue)) {
+            if (!strcmp(venue, host_venue.c_str())) {
                 //msg_printf(this, MSG_INFO, "found venue %s", host_venue);
                 using_venue_specific_prefs = true;
                 in_right_venue = true;
@@ -294,13 +297,13 @@ int PROJECT::parse_account_file() {
     int retval;
     FILE* f;
 
-    get_account_filename(master_url, path, sizeof(path));
+    get_account_filename(master_url.c_str(), path, sizeof(path));
     f = boinc_fopen(path, "r");
     if (!f) return ERR_FOPEN;
     retval = parse_account(f);
     fclose(f);
     if (retval) return retval;
-    if (strlen(host_venue)) {
+    if (!host_venue.empty()) {
         return parse_account_file_venue();
     }
     return 0;
@@ -311,7 +314,7 @@ int CLIENT_STATE::parse_account_files_venue() {
 
     for (i=0; i<projects.size(); i++) {
         PROJECT* p = projects[i];
-        if (strlen(p->host_venue)) {
+        if (!p->host_venue.empty()) {
             p->parse_account_file_venue();
         }
     }
@@ -356,7 +359,7 @@ int CLIENT_STATE::parse_account_files() {
         // If this happens, anything in client_state.xml for the old project
         // will be ignored.
         //
-        get_account_filename(project->master_url, path, sizeof(path));
+        get_account_filename(project->master_url.c_str(), path, sizeof(path));
         if (strcmp(path, name.c_str())) {
             // if not, see if account file with proper name exists
             //
@@ -440,8 +443,11 @@ int PROJECT::parse_statistics(FILE* in) {
             }
             continue;
         }
-        if (xp.parse_str("master_url", master_url, sizeof(master_url))) {
-            canonicalize_master_url(master_url, sizeof(master_url));
+        if (xp.parse_string("master_url", master_url)) {
+            char buf[256];
+            safe_strcpy(buf, master_url.c_str());
+            canonicalize_master_url(buf, sizeof(buf));
+            master_url = buf;
             continue;
         }
         if (log_flags.unparsed_xml) {
@@ -503,7 +509,7 @@ int PROJECT::write_statistics_file() {
     fprintf(f,
         "<project_statistics>\n"
         "    <master_url>%s</master_url>\n",
-        master_url
+        master_url.c_str()
     );
 
     for (std::vector<DAILY_STATS>::iterator i=statistics.begin();
@@ -575,9 +581,9 @@ int CLIENT_STATE::add_project(
     //
     projects.push_back(std::make_unique<PROJECT>());
     project = projects.back().get();
-    safe_strcpy(project->master_url, canonical_master_url);
-    safe_strcpy(project->authenticator, auth);
-    safe_strcpy(project->project_name, project_name);
+    project->master_url = canonical_master_url;
+    project->authenticator = auth;
+    project->project_name = project_name;
     project->attached_via_acct_mgr = attached_via_acct_mgr;
     project->master_url_fetch_pending = true;
     project->sched_rpc_pending = RPC_REASON_INIT;

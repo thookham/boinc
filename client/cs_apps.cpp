@@ -460,10 +460,10 @@ void CLIENT_STATE::docker_cleanup() {
     for (auto const& atp : active_tasks.active_tasks) {
         if (!strstr(atp->app_version->plan_class, "docker")) continue;
         char buf[256];
-        escape_project_url(atp->wup->project->master_url, buf);
-        string s = docker_image_name(buf, atp->wup->name);
+        escape_project_url(atp->wup->project->master_url.c_str(), buf);
+        string s = docker_image_name(buf, atp->wup->name.c_str());
         info.images.push_back(s);
-        s = docker_container_name(buf, atp->result->name);
+        s = docker_container_name(buf, atp->result->name.c_str());
         info.containers.push_back(s);
     }
 

@@ -16,7 +16,10 @@
 // along with BOINC.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <string.h>
+#ifndef _WIN32
 #include "config.h"
+#endif
+
 #include "sched_msgs.h"
 
 SCHED_MSG_LOG log_messages;

@@ -38,6 +38,16 @@
 #include "app.h"
 #include "util.h"
 
+const char* xml_graphics_modes[] = {
+    "<graphics_mode_unsupported/>",
+    "<graphics_mode_hide/>",
+    "<graphics_mode_window/>",
+    "<graphics_mode_fullscreen/>",
+    "<graphics_mode_blankscreen/>",
+    "<graphics_mode_reread_prefs/>",
+    "<graphics_mode_quit/>"
+};
+
 
 void ACTIVE_TASK::request_graphics_mode(GRAPHICS_MSG& m) {
     char buf[MSG_CHANNEL_SIZE], buf2[256];
@@ -59,15 +69,15 @@ void ACTIVE_TASK::request_graphics_mode(GRAPHICS_MSG& m) {
     graphics_msg = m;       // save graphics_station, desktop, display
 
     safe_strcpy(buf, xml_graphics_modes[m.mode]);
-    if (strlen(m.window_station)) {
+    if (m.window_station[0]) {
         snprintf(buf2, sizeof(buf2), "<window_station>%s</window_station>", m.window_station);
         strcat(buf, buf2);
     }
-    if (strlen(m.desktop)) {
+    if (m.desktop[0]) {
         snprintf(buf2, sizeof(buf2), "<desktop>%s</desktop>", m.desktop);
         strcat(buf, buf2);
     }
-    if (strlen(m.display)) {
+    if (m.display[0]) {
         snprintf(buf2, sizeof(buf2), "<display>%s</display>", m.display);
         strcat(buf, buf2);
     }

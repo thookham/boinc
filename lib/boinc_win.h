@@ -110,7 +110,10 @@
 #else
 
 // Under any system that can run configure we need to include config.h first.
+#ifndef _WIN32
 #include "config.h"
+#endif
+
 
 #endif
 

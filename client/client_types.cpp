@@ -138,20 +138,20 @@ int parse_project_files(XML_PARSER& xp, vector<FILE_REF>& project_files) {
 }
 
 int APP::parse(XML_PARSER& xp) {
-    safe_strcpy(name, "");
-    safe_strcpy(user_friendly_name, "");
+    name.clear();
+    user_friendly_name.clear();
     project = NULL;
     non_cpu_intensive = false;
     sporadic = false;
     while (!xp.get_tag()) {
         if (xp.match_tag("/app")) {
-            if (!strlen(user_friendly_name)) {
-                safe_strcpy(user_friendly_name, name);
+            if (user_friendly_name.empty()) {
+                user_friendly_name = name;
             }
             return 0;
         }
-        if (xp.parse_str("name", name, sizeof(name))) continue;
-        if (xp.parse_str("user_friendly_name", user_friendly_name, sizeof(user_friendly_name))) continue;
+        if (xp.parse_string("name", name)) continue;
+        if (xp.parse_string("user_friendly_name", user_friendly_name)) continue;
         if (xp.parse_bool("non_cpu_intensive", non_cpu_intensive)) continue;
         if (xp.parse_bool("sporadic", sporadic)) continue;
         if (xp.parse_bool("fraction_done_exact", fraction_done_exact)) continue;
@@ -195,15 +195,15 @@ int APP::write(MIOFILE& out) {
         "    <user_friendly_name>%s</user_friendly_name>\n"
         "    <non_cpu_intensive>%d</non_cpu_intensive>\n"
         "</app>\n",
-        name, user_friendly_name,
+        name.c_str(), user_friendly_name.c_str(),
         non_cpu_intensive?1:0
     );
     return 0;
 }
 
 FILE_INFO::FILE_INFO() {
-    safe_strcpy(name, "");
-    safe_strcpy(md5_cksum, "");
+    name.clear();
+    md5_cksum.clear();
     max_nbytes = 0;
     nbytes = 0;
     gzipped_nbytes = 0;
@@ -226,8 +226,8 @@ FILE_INFO::FILE_INFO() {
     project = NULL;
     download_urls.clear();
     upload_urls.clear();
-    safe_strcpy(xml_signature, "");
-    safe_strcpy(file_signature, "");
+    xml_signature.clear();
+    file_signature.clear();
     cert_sigs.reset();
     async_verify.reset();
 }
@@ -317,9 +317,9 @@ int FILE_INFO::parse(XML_PARSER& xp) {
 
     while (!xp.get_tag()) {
         if (xp.match_tag("/file_info") || xp.match_tag("/file")) {
-            if (!strlen(name)) return ERR_BAD_FILENAME;
-            if (strstr(name, "..")) return ERR_BAD_FILENAME;
-            if (strchr(name, '%')) return ERR_BAD_FILENAME;
+            if (name.empty()) return ERR_BAD_FILENAME;
+            if (name.find("..") != string::npos) return ERR_BAD_FILENAME;
+            if (name.find('%') != string::npos) return ERR_BAD_FILENAME;
             if (gzipped_urls.size() > 0) {
                 download_urls.clear();
                 download_urls.urls = gzipped_urls;
@@ -331,8 +331,7 @@ int FILE_INFO::parse(XML_PARSER& xp) {
             retval = copy_element_contents(
                 xp.f->f,
                 "</xml_signature>",
-                xml_signature,
-                sizeof(xml_signature)
+                xml_signature
             );
             if (retval) return retval;
             strip_whitespace(xml_signature);
@@ -342,8 +341,7 @@ int FILE_INFO::parse(XML_PARSER& xp) {
             retval = copy_element_contents(
                 xp.f->f,
                 "</file_signature>",
-                file_signature,
-                sizeof(file_signature)
+                file_signature
             );
             if (retval) return retval;
             strip_whitespace(file_signature);
@@ -383,7 +381,7 @@ int FILE_INFO::parse(XML_PARSER& xp) {
             gzipped_urls.push_back(url);
             continue;
         }
-        if (xp.parse_str("md5_cksum", md5_cksum, sizeof(md5_cksum))) continue;
+        if (xp.parse_str("md5_cksum", md5_cksum, 256)) continue;
         if (xp.parse_double("nbytes", nbytes)) continue;
         if (xp.parse_double("gzipped_nbytes", gzipped_nbytes)) continue;
         if (xp.parse_double("max_nbytes", max_nbytes)) continue;
@@ -428,10 +426,9 @@ int FILE_INFO::parse(XML_PARSER& xp) {
         if (xp.match_tag("error_msg")) {
             retval = copy_element_contents(
                 xp.f->f,
-                "</error_msg>", buf2, sizeof(buf2)
+                "</error_msg>", error_msg
             );
             if (retval) return retval;
-            error_msg = buf2;
             continue;
         }
         // deprecated tags
@@ -462,12 +459,12 @@ int FILE_INFO::write(MIOFILE& out, bool to_server) {
         "    <name>%s</name>\n"
         "    <nbytes>%f</nbytes>\n"
         "    <max_nbytes>%f</max_nbytes>\n",
-        name, nbytes, max_nbytes
+        name.c_str(), nbytes, max_nbytes
     );
-    if (strlen(md5_cksum)) {
+    if (!md5_cksum.empty()) {
         out.printf(
             "    <md5_cksum>%s</md5_cksum>\n",
-            md5_cksum
+            md5_cksum.c_str()
         );
     }
     if (!to_server) {
@@ -482,7 +479,7 @@ int FILE_INFO::write(MIOFILE& out, bool to_server) {
         }
         if (signature_required) out.printf("    <signature_required/>\n");
         if (is_user_file) out.printf("    <is_user_file/>\n");
-        if (strlen(file_signature)) out.printf("    <file_signature>\n%s\n</file_signature>\n", file_signature);
+        if (!file_signature.empty()) out.printf("    <file_signature>\n%s\n</file_signature>\n", file_signature.c_str());
     }
     if (sticky_expire_time) {
         out.printf("    <sticky_expire_time>%f</sticky_expire_time>\n",
@@ -502,10 +499,10 @@ int FILE_INFO::write(MIOFILE& out, bool to_server) {
         if (retval) return retval;
     }
     if (!to_server) {
-        if (strlen(xml_signature)) {
+        if (!xml_signature.empty()) {
             out.printf(
                 "    <xml_signature>\n%s    </xml_signature>\n",
-                xml_signature
+                xml_signature.c_str()
             );
         }
     }
@@ -532,9 +529,9 @@ int FILE_INFO::write_gui(MIOFILE& out) {
         "    <nbytes>%f</nbytes>\n"
         "    <max_nbytes>%f</max_nbytes>\n"
         "    <status>%d</status>\n",
-        project->master_url,
-        project->project_name,
-        name,
+        project->master_url.c_str(),
+        project->project_name.c_str(),
+        name.c_str(),
         download_gzipped?gzipped_nbytes:nbytes,
         max_nbytes,
         status
@@ -608,7 +605,7 @@ const char* URL_LIST::get_current_url(FILE_INFO& fi) {
     }
     if (current_index >= (int)urls.size()) {
         msg_printf(fi.project, MSG_INTERNAL_ERROR,
-            "File %s has no URL", fi.name
+            "File %s has no URL", fi.name.c_str()
         );
         return NULL;
     }
@@ -635,11 +632,11 @@ int FILE_INFO::merge_info(FILE_INFO& new_info) {
 
     // replace signatures
     //
-    if (strlen(new_info.file_signature)) {
-        safe_strcpy(file_signature, new_info.file_signature);
+    if (!new_info.file_signature.empty()) {
+        file_signature = new_info.file_signature;
     }
-    if (strlen(new_info.xml_signature)) {
-        safe_strcpy(xml_signature, new_info.xml_signature);
+    if (!new_info.xml_signature.empty()) {
+        xml_signature = new_info.xml_signature;
     }
 
     // If the file is supposed to be executable and is PRESENT,
@@ -649,13 +646,13 @@ int FILE_INFO::merge_info(FILE_INFO& new_info) {
     //
     if (status == FILE_PRESENT && !executable && new_info.executable) {
         msg_printf(project, MSG_INTERNAL_ERROR,
-            "%s has changed to executable", name
+            "%s has changed to executable", name.c_str()
         );
         executable = true;
         int retval = set_permissions();
         if (retval) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "merge_info(): failed to change permissions of %s", name
+                "merge_info(): failed to change permissions of %s", name.c_str()
             );
         }
         return retval;
@@ -701,7 +698,7 @@ void FILE_INFO::failure_message(string& s) {
         "<file_xfer_error>\n"
         "  <file_name>%s</file_name>\n"
         "  <error_code>%d (%s)</error_code>\n",
-        name,
+        name.c_str(),
         status, boincerror(status)
     );
     s = buf;
@@ -794,41 +791,41 @@ void RESOURCE_USAGE::clear() {
     coproc_usage = 0;
     gpu_ram = 0;
     flops = 0;
-    cmdline[0] = 0;
+    cmdline.clear();
     missing_coproc = false;
-    missing_coproc_name[0] = 0;
+    missing_coproc_name.clear();
 }
 
 // see if we have the GPU libraries (OpenCL/CUDA/CAL)
 // required by the plan class.
 // If not, set missing_coproc
 //
-void RESOURCE_USAGE::check_gpu_libs(char* plan_class) {
+void RESOURCE_USAGE::check_gpu_libs(string& plan_class) {
     int rt = rsc_type;
     if (!rt) return;
-    if (strstr(plan_class, "opencl")) {
+    if (plan_class.find("opencl") != string::npos) {
         if (!coprocs.coprocs[rt].have_opencl) {
             msg_printf(0, MSG_INFO,
                 "App version needs OpenCL but GPU doesn't support it"
             );
             missing_coproc = true;
-            safe_strcpy(missing_coproc_name, coprocs.coprocs[rt].type);
+            missing_coproc_name = coprocs.coprocs[rt].type;
         }
-    } else if (strstr(plan_class, "cuda")) {
+    } else if (plan_class.find("cuda") != string::npos) {
         if (!coprocs.coprocs[rt].have_cuda) {
             msg_printf(0, MSG_INFO,
                 "App version needs CUDA but GPU doesn't support it"
             );
             missing_coproc = true;
-            safe_strcpy(missing_coproc_name, coprocs.coprocs[rt].type);
+            missing_coproc_name = coprocs.coprocs[rt].type;
         }
-    } else if (strstr(plan_class, "ati")) {
+    } else if (plan_class.find("ati") != string::npos) {
         if (!coprocs.coprocs[rt].have_cal) {
             msg_printf(0, MSG_INFO,
                 "App version needs CAL but GPU doesn't support it"
             );
             missing_coproc = true;
-            safe_strcpy(missing_coproc_name, coprocs.coprocs[rt].type);
+            missing_coproc_name = coprocs.coprocs[rt].type;
         }
     }
 }
@@ -850,13 +847,13 @@ void RESOURCE_USAGE::write(MIOFILE& out) {
             coproc_usage
         );
     }
-    if (missing_coproc && strlen(missing_coproc_name)) {
+    if (missing_coproc && !missing_coproc_name.empty()) {
         out.printf(
             "    <coproc>\n"
             "        <type>%s</type>\n"
             "        <count>%f</count>\n"
             "    </coproc>\n",
-            missing_coproc_name,
+            missing_coproc_name.c_str(),
             coproc_usage
         );
     }
@@ -869,21 +866,21 @@ void RESOURCE_USAGE::write(MIOFILE& out) {
 }
 
 void APP_VERSION::init() {
-    app_name[0] = 0;
+    app_name.clear();
     version_num = 0;
-    platform[0] = 0;
-    plan_class[0] = 0;
-    api_version[0] = 0;
+    platform.clear();
+    plan_class.clear();
+    api_version.clear();
     resource_usage.clear();
-    file_prefix[0] = 0;
+    file_prefix.clear();
     needs_network = false;
     dont_throttle = false;
     app = NULL;
     project = NULL;
     ref_cnt = 0;
     graphics_exec_fip = NULL;
-    graphics_exec_path[0] = 0;
-    graphics_exec_file[0] = 0;
+    graphics_exec_path.clear();
+    graphics_exec_file.clear();
     max_working_set_size = 0;
     is_vbox_app = false;
     is_docker_app = false;
@@ -912,17 +909,17 @@ int APP_VERSION::parse(XML_PARSER& xp) {
                 // never throttle GPU apps, even if wrapped
                 dont_throttle = true;
             }
-            if (strstr(plan_class, "vbox")) {
+            if (plan_class.find("vbox") != string::npos) {
                 // VBox does its own throttling
                 is_vbox_app = true;
                 dont_throttle = true;
             }
-            if (strstr(plan_class, "docker")) {
+            if (plan_class.find("docker") != string::npos) {
                 is_docker_app = true;
             }
             return 0;
         }
-        if (xp.parse_str("app_name", app_name, sizeof(app_name))) continue;
+        if (xp.parse_string("app_name", app_name)) continue;
         if (xp.match_tag("file_ref")) {
             int retval = file_ref.parse(xp);
             if (retval) {
@@ -935,9 +932,9 @@ int APP_VERSION::parse(XML_PARSER& xp) {
             continue;
         }
         if (xp.parse_int("version_num", version_num)) continue;
-        if (xp.parse_str("api_version", api_version, sizeof(api_version))) continue;
-        if (xp.parse_str("platform", platform, sizeof(platform))) continue;
-        if (xp.parse_str("plan_class", plan_class, sizeof(plan_class))) continue;
+        if (xp.parse_string("api_version", api_version)) continue;
+        if (xp.parse_string("platform", platform)) continue;
+        if (xp.parse_string("plan_class", plan_class)) continue;
         if (xp.parse_double("avg_ncpus", resource_usage.avg_ncpus)) continue;
         if (xp.parse_double("max_ncpus", dtemp)) continue;
         if (xp.parse_double("flops", dtemp)) {
@@ -950,8 +947,8 @@ int APP_VERSION::parse(XML_PARSER& xp) {
             }
             continue;
         }
-        if (xp.parse_str("cmdline", resource_usage.cmdline, sizeof(resource_usage.cmdline))) continue;
-        if (xp.parse_str("file_prefix", file_prefix, sizeof(file_prefix))) continue;
+        if (xp.parse_string("cmdline", resource_usage.cmdline)) continue;
+        if (xp.parse_string("file_prefix", file_prefix)) continue;
         if (xp.parse_double("resource_usage.gpu_ram", resource_usage.gpu_ram)) continue;
         if (xp.match_tag("coproc")) {
             COPROC_REQ cp;
@@ -964,7 +961,7 @@ int APP_VERSION::parse(XML_PARSER& xp) {
                     );
                     resource_usage.missing_coproc = true;
                     resource_usage.coproc_usage = cp.count;
-                    safe_strcpy(resource_usage.missing_coproc_name, cp.type);
+                    resource_usage.missing_coproc_name = cp.type;
                     continue;
                 }
                 resource_usage.rsc_type = rt;
@@ -997,21 +994,21 @@ int APP_VERSION::write(MIOFILE& out, bool write_file_info) {
         "    <app_name>%s</app_name>\n"
         "    <version_num>%d</version_num>\n"
         "    <platform>%s</platform>\n",
-        app_name,
+        app_name.c_str(),
         version_num,
-        platform
+        platform.c_str()
     );
-    if (strlen(plan_class)) {
-        out.printf("    <plan_class>%s</plan_class>\n", plan_class);
+    if (!plan_class.empty()) {
+        out.printf("    <plan_class>%s</plan_class>\n", plan_class.c_str());
     }
-    if (strlen(api_version)) {
-        out.printf("    <api_version>%s</api_version>\n", api_version);
+    if (!api_version.empty()) {
+        out.printf("    <api_version>%s</api_version>\n", api_version.c_str());
     }
-    if (strlen(resource_usage.cmdline)) {
-        out.printf("    <cmdline>%s</cmdline>\n", resource_usage.cmdline);
+    if (!resource_usage.cmdline.empty()) {
+        out.printf("    <cmdline>%s</cmdline>\n", resource_usage.cmdline.c_str());
     }
-    if (strlen(file_prefix)) {
-        out.printf("    <file_prefix>%s</file_prefix>\n", file_prefix);
+    if (!file_prefix.empty()) {
+        out.printf("    <file_prefix>%s</file_prefix>\n", file_prefix.c_str());
     }
     if (write_file_info) {
         for (i=0; i<app_files.size(); i++) {
@@ -1082,7 +1079,7 @@ void APP_VERSION::clear_errors() {
 
 bool APP_VERSION::api_version_at_least(int major, int minor) {
     int maj, min, n;
-    n = sscanf(api_version, "%d.%d", &maj, &min);
+    n = sscanf(api_version.c_str(), "%d.%d", &maj, &min);
     if (n != 2) return false;
     if (maj < major) return false;
     if (maj > major) return true;
@@ -1096,7 +1093,7 @@ bool APP_VERSION::api_version_at_least(int major, int minor) {
 //
 void APP_VERSION::check_graphics_exec() {
     if (!graphics_exec_fip) return;
-    if (strlen(graphics_exec_path)) return;
+    if (!graphics_exec_path.empty()) return;
     if (graphics_exec_fip->status < 0) {
         // download or verify of graphics exec failed; don't check again
         //
@@ -1116,8 +1113,8 @@ void APP_VERSION::check_graphics_exec() {
         return;
     }
 #endif
-    safe_strcpy(graphics_exec_path, path);
-    safe_strcpy(graphics_exec_file, graphics_exec_fip->name);
+    graphics_exec_path = path;
+    graphics_exec_file = graphics_exec_fip->name;
 }
 
 int FILE_REF::parse(XML_PARSER& xp) {
@@ -1126,12 +1123,12 @@ int FILE_REF::parse(XML_PARSER& xp) {
     clear();
     while (!xp.get_tag()) {
         if (xp.match_tag("/file_ref")) {
-            if (strstr(open_name, "..")) return ERR_BAD_FILENAME;
-            if (strchr(open_name, '%')) return ERR_BAD_FILENAME;
+            if (open_name.find("..") != string::npos) return ERR_BAD_FILENAME;
+            if (open_name.find('%') != string::npos) return ERR_BAD_FILENAME;
             return 0;
         }
-        if (xp.parse_str("file_name", file_name, sizeof(file_name))) continue;
-        if (xp.parse_str("open_name", open_name, sizeof(open_name))) continue;
+        if (xp.parse_string("file_name", file_name)) continue;
+        if (xp.parse_string("open_name", open_name)) continue;
         if (xp.parse_bool("main_program", main_program)) continue;
         if (xp.parse_bool("copy_file", copy_file)) continue;
         if (xp.parse_bool("optional", optional)) continue;
@@ -1152,10 +1149,10 @@ int FILE_REF::write(MIOFILE& out) {
     out.printf(
         "    <file_ref>\n"
         "        <file_name>%s</file_name>\n",
-        file_name
+        file_name.c_str()
     );
-    if (strlen(open_name)) {
-        out.printf("        <open_name>%s</open_name>\n", open_name);
+    if (!open_name.empty()) {
+        out.printf("        <open_name>%s</open_name>\n", open_name.c_str());
     }
     if (main_program) {
         out.printf("        <main_program/>\n");
@@ -1176,8 +1173,8 @@ int WORKUNIT::parse(XML_PARSER& xp) {
     char buf[1024];
     int retval;
 
-    safe_strcpy(name, "");
-    safe_strcpy(app_name, "");
+    name.clear();
+    app_name.clear();
     version_num = 0;
     command_line.clear();
     app = NULL;
@@ -1199,8 +1196,8 @@ int WORKUNIT::parse(XML_PARSER& xp) {
             }
             return 0;
         }
-        if (xp.parse_str("name", name, sizeof(name))) continue;
-        if (xp.parse_str("app_name", app_name, sizeof(app_name))) continue;
+        if (xp.parse_string("name", name)) continue;
+        if (xp.parse_string("app_name", app_name)) continue;
         if (xp.parse_int("version_num", version_num)) continue;
         if (xp.parse_string("command_line", command_line)) {
             strip_whitespace(command_line);
@@ -1225,8 +1222,8 @@ int WORKUNIT::parse(XML_PARSER& xp) {
 #endif
             continue;
         }
-        if (xp.parse_str("plan_class", plan_class, sizeof(plan_class))) continue;
-        if (xp.parse_str("sub_appname", sub_appname, sizeof(sub_appname))) continue;
+        if (xp.parse_string("plan_class", plan_class)) continue;
+        if (xp.parse_string("sub_appname", sub_appname)) continue;
         if (xp.parse_double("avg_ncpus", resource_usage.avg_ncpus)) continue;
         if (xp.parse_double("flops", dtemp)) {
             if (dtemp <= 0) {
@@ -1236,7 +1233,7 @@ int WORKUNIT::parse(XML_PARSER& xp) {
             }
             continue;
         }
-        if (xp.parse_str("cmdline", resource_usage.cmdline, sizeof(resource_usage.cmdline))) continue;
+        if (xp.parse_string("cmdline", resource_usage.cmdline)) continue;
         if (xp.parse_double("resource_usage.gpu_ram", resource_usage.gpu_ram)) continue;
         if (xp.match_tag("coproc")) {
             COPROC_REQ cp;
@@ -1249,7 +1246,7 @@ int WORKUNIT::parse(XML_PARSER& xp) {
                     );
                     resource_usage.missing_coproc = true;
                     resource_usage.coproc_usage = cp.count;
-                    safe_strcpy(resource_usage.missing_coproc_name, cp.type);
+                    resource_usage.missing_coproc_name = cp.type;
                     continue;
                 }
                 resource_usage.rsc_type = rt;
@@ -1310,10 +1307,10 @@ int WORKUNIT::write(MIOFILE& out, bool gui) {
     for (i=0; i<input_files.size(); i++) {
         input_files[i].write(out);
     }
-    if (strlen(sub_appname)) {
+    if (!sub_appname.empty()) {
         out.printf(
             "    <sub_appname>%s</sub_appname>\n",
-            sub_appname
+            sub_appname.c_str()
         );
     }
     if (resource_usage.present()) {
@@ -1438,14 +1435,14 @@ int USER_CPID::parse(XML_PARSER& xp) {
     clear();
     while (!xp.get_tag()) {
         if (xp.match_tag("/user_cpid")) {
-            if (!strlen(email_hash) || !strlen(cpid) || !time) {
+            if (email_hash.empty() || cpid.empty() || !time) {
                 msg_printf(0, MSG_INTERNAL_ERROR, "USER_CPID::parse() failed");
                 return ERR_XML_PARSE;
             }
             break;
         }
-        if (xp.parse_str("email_hash", email_hash, sizeof(email_hash))) continue;
-        if (xp.parse_str("cpid", cpid, sizeof(cpid))) continue;
+        if (xp.parse_string("email_hash", email_hash)) continue;
+        if (xp.parse_string("cpid", cpid)) continue;
         if (xp.parse_double("time", time)) continue;
     }
     return 0;
@@ -1458,7 +1455,7 @@ int USER_CPID::write(MIOFILE& out) {
         "      <cpid>%s</cpid>\n"
         "      <time>%f</time>\n"
         "   </user_cpid>\n",
-        email_hash, cpid, time
+        email_hash.c_str(), cpid.c_str(), time
     );
     return 0;
 }
@@ -1489,7 +1486,7 @@ int USER_CPIDS::write(MIOFILE& out) {
 
 USER_CPID* USER_CPIDS::lookup(const char* email_hash) {
     for (USER_CPID &cpid: cpids) {
-        if (!strcmp(cpid.email_hash, email_hash)) {
+        if (cpid.email_hash == email_hash) {
             return &cpid;
         }
     }
@@ -1500,20 +1497,20 @@ USER_CPID* USER_CPIDS::lookup(const char* email_hash) {
 // (should get done once, when updating to this client version)
 //
 void USER_CPIDS::init_from_projects() {
-    for (PROJECT *p: gstate.projects) {
-        if (!strlen(p->email_hash) || !strlen(p->cross_project_id) || !p->user_create_time) {
+    for (auto const& p: gstate.projects) {
+        if (p->email_hash.empty() || p->cross_project_id.empty() || !p->user_create_time) {
             continue;
         }
-        USER_CPID* ucp = lookup(p->email_hash);
+        USER_CPID* ucp = lookup(p->email_hash.c_str());
         if (ucp) {
             if (p->user_create_time < ucp->time) {
-                strcpy(ucp->cpid, p->cross_project_id);
+                ucp->cpid = p->cross_project_id;
                 ucp->time = p->user_create_time;
             }
         } else {
             USER_CPID uc;
-            strcpy(uc.email_hash, p->email_hash);
-            strcpy(uc.cpid, p->cross_project_id);
+            uc.email_hash = p->email_hash;
+            uc.cpid = p->cross_project_id;
             uc.time = p->user_create_time;
             cpids.push_back(uc);
 

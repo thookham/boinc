@@ -5,7 +5,16 @@
         "curl",
         "openssl",
         "zlib",
-        "sqlite3"
+        "sqlite3",
+        "gtest",
+        "nlohmann-json",
+        {
+            "name": "libzip",
+            "default-features": false
+        },
+        "opencl",
+        "ftgl",
+        "wxwidgets"
     ],
-    "builtin-baseline": "3426db05b996481ca31e95fff37d4cf57e0da38b"
+    "builtin-baseline": "d2452281016c6d77b6ef199d599d9929eafe4807"
 }

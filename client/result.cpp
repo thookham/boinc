@@ -32,10 +32,10 @@
 #include "result.h"
 
 int RESULT::parse_name(XML_PARSER& xp, const char* end_tag) {
-    safe_strcpy(name, "");
+    name.clear();
     while (!xp.get_tag()) {
         if (xp.match_tag(end_tag)) return 0;
-        if (xp.parse_str("name", name, sizeof(name))) continue;
+        if (xp.parse_string("name", name)) continue;
         if (log_flags.unparsed_xml) {
             msg_printf(0, MSG_INFO,
                 "[unparsed_xml] RESULT::parse_name(): unrecognized: %s\n",
@@ -48,13 +48,13 @@ int RESULT::parse_name(XML_PARSER& xp, const char* end_tag) {
 }
 
 void RESULT::clear() {
-    safe_strcpy(name, "");
-    safe_strcpy(wu_name, "");
+    name.clear();
+    wu_name.clear();
     received_time = 0;
     report_deadline = 0;
     version_num = 0;
-    safe_strcpy(plan_class, "");
-    safe_strcpy(platform, "");
+    plan_class.clear();
+    platform.clear();
     avp = NULL;
     output_files.clear();
     ready_to_report = false;
@@ -94,9 +94,9 @@ void RESULT::clear() {
     unfinished_time_slice = false;
     seqno = 0;
     edf_scheduled = false;
-    safe_strcpy(resources, "");
+    resources.clear();
     schedule_backoff = 0;
-    safe_strcpy(schedule_backoff_reason, "");
+    schedule_backoff_reason.clear();
 }
 
 // parse a <result> element from scheduling server.
@@ -161,8 +161,8 @@ int RESULT::parse_state(XML_PARSER& xp) {
             }
             return 0;
         }
-        if (xp.parse_str("name", name, sizeof(name))) continue;
-        if (xp.parse_str("wu_name", wu_name, sizeof(wu_name))) continue;
+        if (xp.parse_string("name", name)) continue;
+        if (xp.parse_string("wu_name", wu_name)) continue;
         if (xp.parse_double("received_time", received_time)) continue;
         if (xp.parse_double("report_deadline", report_deadline)) {
             continue;
@@ -200,8 +200,8 @@ int RESULT::parse_state(XML_PARSER& xp) {
         if (xp.parse_double("fpops_cumulative", fpops_cumulative)) continue;
         if (xp.parse_double("intops_per_cpu_sec", intops_per_cpu_sec)) continue;
         if (xp.parse_double("intops_cumulative", intops_cumulative)) continue;
-        if (xp.parse_str("platform", platform, sizeof(platform))) continue;
-        if (xp.parse_str("plan_class", plan_class, sizeof(plan_class))) continue;
+        if (xp.parse_string("platform", platform)) continue;
+        if (xp.parse_string("plan_class", plan_class)) continue;
         if (xp.parse_int("version_num", version_num)) continue;
         if (log_flags.unparsed_xml) {
             msg_printf(0, MSG_INFO,
@@ -230,16 +230,16 @@ int RESULT::write(MIOFILE& out, bool to_server) {
         "    <state>%d</state>\n"
         "    <platform>%s</platform>\n"
         "    <version_num>%d</version_num>\n",
-        name,
+        name.c_str(),
         final_cpu_time,
         final_elapsed_time,
         exit_status,
         state(),
-        platform,
+        platform.c_str(),
         version_num
     );
-    if (strlen(plan_class)) {
-        out.printf("    <plan_class>%s</plan_class>\n", plan_class);
+    if (!plan_class.empty()) {
+        out.printf("    <plan_class>%s</plan_class>\n", plan_class.c_str());
     }
     if (fpops_per_cpu_sec) {
         out.printf("    <fpops_per_cpu_sec>%f</fpops_per_cpu_sec>\n", fpops_per_cpu_sec);
@@ -332,7 +332,7 @@ int RESULT::write(MIOFILE& out, bool to_server) {
             "    <wu_name>%s</wu_name>\n"
             "    <report_deadline>%f</report_deadline>\n"
             "    <received_time>%f</received_time>\n",
-            wu_name,
+            wu_name.c_str(),
             report_deadline,
             received_time
         );
@@ -367,12 +367,12 @@ int RESULT::write_gui(MIOFILE& out, bool check_resources) {
         "    <report_deadline>%f</report_deadline>\n"
         "    <received_time>%f</received_time>\n"
         "    <estimated_cpu_time_remaining>%f</estimated_cpu_time_remaining>\n",
-        name,
-        wu_name,
-        platform,
+        name.c_str(),
+        wu_name.c_str(),
+        platform.c_str(),
         version_num,
-        plan_class,
-        project->master_url,
+        plan_class.c_str(),
+        project->master_url.c_str(),
         final_cpu_time,
         final_elapsed_time,
         exit_status,
@@ -391,10 +391,10 @@ int RESULT::write_gui(MIOFILE& out, bool check_resources) {
     if (resource_usage.missing_coproc) out.printf("    <coproc_missing/>\n");
     if (schedule_backoff > gstate.now) {
         out.printf("    <scheduler_wait/>\n");
-        if (strlen(schedule_backoff_reason)) {
+        if (!schedule_backoff_reason.empty()) {
             out.printf(
                 "    <scheduler_wait_reason>%s</scheduler_wait_reason>\n",
-                schedule_backoff_reason
+                schedule_backoff_reason.c_str()
             );
         }
     }
@@ -403,43 +403,51 @@ int RESULT::write_gui(MIOFILE& out, bool check_resources) {
     if (atp) {
         atp->write_gui(out);
     }
-    if (!strlen(resources) || check_resources) { // update resource string only when zero or when app_config is updated.
+    if (resources.empty() || check_resources) { // update resource string only when zero or when app_config is updated.
         if (resource_usage.rsc_type) {
             if (resource_usage.coproc_usage == 1) {
-                snprintf(resources, sizeof(resources),
+                char res_buf[256];
+                snprintf(res_buf, sizeof(res_buf),
                     "%.3g %s + 1 %s",
                     resource_usage.avg_ncpus,
                     cpu_string(resource_usage.avg_ncpus),
                     rsc_name_long(resource_usage.rsc_type)
                 );
+                resources = res_buf;
             } else {
-                snprintf(resources, sizeof(resources),
+                char res_buf[256];
+                snprintf(res_buf, sizeof(res_buf),
                     "%.3g %s + %.3g %ss",
                     resource_usage.avg_ncpus,
                     cpu_string(resource_usage.avg_ncpus),
                     resource_usage.coproc_usage,
                     rsc_name_long(resource_usage.rsc_type)
                 );
+                resources = res_buf;
             }
         } else if (resource_usage.missing_coproc) {
-            snprintf(resources, sizeof(resources),
+            char res_buf[256];
+            snprintf(res_buf, sizeof(res_buf),
                 "%.3g %s + %.12s GPU (missing)",
                 resource_usage.avg_ncpus,
                 cpu_string(resource_usage.avg_ncpus),
                 resource_usage.missing_coproc_name
             );
+            resources = res_buf;
         } else if (!project->non_cpu_intensive && (resource_usage.avg_ncpus != 1)) {
-            snprintf(resources, sizeof(resources),
+            char res_buf[256];
+            snprintf(res_buf, sizeof(res_buf),
                 "%.3g %s",
                 resource_usage.avg_ncpus,
                 cpu_string(resource_usage.avg_ncpus)
             );
+            resources = res_buf;
         } else {
-            safe_strcpy(resources, " ");
+            resources = " ";
         }
     }
     // update app version resources
-    if (strlen(resources)>1) {
+    if (resources.length()>1) {
         char buf[256];
         safe_strcpy(buf, "");
         if (atp && atp->scheduler_state == CPU_SCHED_SCHEDULED) {
@@ -464,7 +472,7 @@ int RESULT::write_gui(MIOFILE& out, bool check_resources) {
             }
         }
         out.printf(
-            "    <resources>%s%s</resources>\n", resources, buf
+            "    <resources>%s%s</resources>\n", resources.c_str(), buf
         );
     }
     out.printf("</result>\n");
@@ -556,7 +564,7 @@ FILE_REF* RESULT::lookup_file(FILE_INFO* fip) {
 FILE_INFO* RESULT::lookup_file_logical(const char* lname) {
     for (unsigned int i=0; i<output_files.size(); i++) {
         FILE_REF& fr = output_files[i];
-        if (!strcmp(lname, fr.open_name)) {
+        if (lname == fr.open_name) {
             return fr.file_info;
         }
     }
@@ -570,7 +578,7 @@ void RESULT::append_log_record() {
     if (!f) return;
     fprintf(f, "%.0f ue %f ct %f fe %.0f nm %s et %f es %d\n",
         gstate.now, estimated_runtime_uncorrected(), final_cpu_time,
-        wup->rsc_fpops_est, name, final_elapsed_time,
+        wup->rsc_fpops_est, name.c_str(), final_elapsed_time,
         exit_status
     );
     fclose(f);
@@ -716,9 +724,9 @@ void add_old_result(RESULT& r) {
         }
     }
     OLD_RESULT ores;
-    safe_strcpy(ores.project_url, r.project->master_url);
-    safe_strcpy(ores.result_name, r.name);
-    safe_strcpy(ores.app_name, r.app->name);
+    ores.project_url = r.project->master_url;
+    ores.result_name = r.name;
+    ores.app_name = r.app->name;
     ores.elapsed_time = r.final_elapsed_time;
     ores.cpu_time = r.final_cpu_time;
     ores.completed_time = r.completed_time;
@@ -743,9 +751,9 @@ void print_old_results(MIOFILE& mf) {
             "         <completed_time>%f</completed_time>\n"
             "         <create_time>%f</create_time>\n"
             "    </old_result>\n",
-            ores.project_url,
-            ores.result_name,
-            ores.app_name,
+            ores.project_url.c_str(),
+            ores.result_name.c_str(),
+            ores.app_name.c_str(),
             ores.exit_status,
             ores.elapsed_time,
             ores.cpu_time,

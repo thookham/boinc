@@ -131,7 +131,7 @@ void CLIENT_STATE::sporadic_poll() {
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
                     "[sporadic] preempting %s: computing suspended",
-                    atp->result->name
+                    atp->result->name.c_str()
                 );
             }
         } else if (!sporadic_resources.enough(atp)) {
@@ -141,7 +141,7 @@ void CLIENT_STATE::sporadic_poll() {
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
                     "[sporadic] preempting %s: insufficient resources",
-                    atp->result->name
+                    atp->result->name.c_str()
                 );
             }
         } else if (atp->sporadic_ac_state != AC_WANT_COMPUTE) {
@@ -151,7 +151,7 @@ void CLIENT_STATE::sporadic_poll() {
                 if (log_flags.sporadic_debug) {
                     msg_printf(atp->result->project, MSG_INFO,
                         "[sporadic] %s: app is done computing",
-                        atp->result->name
+                        atp->result->name.c_str()
                     );
                 }
             }
@@ -181,7 +181,7 @@ void CLIENT_STATE::sporadic_poll() {
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
                     "[sporadic] %s can no longer compute: insufficient resources",
-                    atp->result->name
+                    atp->result->name.c_str()
                 );
             }
         } else if (atp->sporadic_ac_state == AC_WANT_COMPUTE) {
@@ -193,7 +193,7 @@ void CLIENT_STATE::sporadic_poll() {
                 if (log_flags.sporadic_debug) {
                     msg_printf(atp->result->project, MSG_INFO,
                         "[sporadic] starting %s",
-                        atp->result->name
+                        atp->result->name.c_str()
                     );
                 }
             }
@@ -210,7 +210,7 @@ void CLIENT_STATE::sporadic_poll() {
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
                     "[sporadic] %s can't compute: suspended",
-                    atp->result->name
+                    atp->result->name.c_str()
                 );
             }
         } else if (!sporadic_resources.enough(atp)) {
@@ -218,7 +218,7 @@ void CLIENT_STATE::sporadic_poll() {
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
                     "[sporadic] %s can't compute: insufficient resources",
-                    atp->result->name
+                    atp->result->name.c_str()
                 );
             }
         } else {
@@ -226,7 +226,7 @@ void CLIENT_STATE::sporadic_poll() {
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
                     "[sporadic] %s can compute",
-                    atp->result->name
+                    atp->result->name.c_str()
                 );
             }
         }

@@ -67,7 +67,7 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
 
     // if null URL, detach from current AMS
     //
-    if (!strlen(ami.master_url) && strlen(gstate.acct_mgr_info.master_url)) {
+    if (ami.master_url.empty() && !gstate.acct_mgr_info.master_url.empty()) {
         msg_printf(NULL, MSG_INFO, "Removing account manager info");
         gstate.acct_mgr_info.clear();
         boinc_delete_file(ACCT_MGR_URL_FILENAME);
@@ -81,8 +81,8 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
         return 0;
     }
 
-    canonicalize_master_url(ami.master_url, sizeof(ami.master_url));
-    if (!valid_master_url(ami.master_url)) {
+    canonicalize_master_url(ami.master_url);
+    if (!valid_master_url(ami.master_url.c_str())) {
         error_num = ERR_INVALID_URL;
         return 0;
     }
@@ -93,16 +93,16 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
         "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"
         "<acct_mgr_request>\n"
     );
-    if (strlen(ami.authenticator)) {
+    if (!ami.authenticator.empty()) {
         fprintf(f,
             "   <authenticator>%s</authenticator>\n",
-            ami.authenticator
+            ami.authenticator.c_str()
         );
     } else {
         fprintf(f,
             "   <name>%s</name>\n"
             "   <password_hash>%s</password_hash>\n",
-            ami.login_name, ami.password_hash
+            ami.login_name.c_str(), ami.password_hash.c_str()
         );
     }
     fprintf(f,
@@ -118,10 +118,10 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
         run_mode_name[gstate.cpu_run_mode.get_perm()]
     );
     gstate.write_platforms(NULL, f);
-    if (strlen(gstate.acct_mgr_info.previous_host_cpid)) {
+    if (!gstate.acct_mgr_info.previous_host_cpid.empty()) {
         fprintf(f,
             "   <previous_host_cpid>%s</previous_host_cpid>\n",
-            gstate.acct_mgr_info.previous_host_cpid
+            gstate.acct_mgr_info.previous_host_cpid.c_str()
         );
     }
 
@@ -170,8 +170,8 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
             "      <resource_share>%f</resource_share>\n"
             "      <disk_usage>%f</disk_usage>\n"
             "      <disk_share>%f</disk_share>\n",
-            p->master_url,
-            p->project_name,
+            p->master_url.c_str(),
+            p->project_name.c_str(),
             p->suspended_via_gui?1:0,
             p->hostid,
             not_started_dur,
@@ -217,7 +217,7 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
         if (p->attached_via_acct_mgr) {
             fprintf(f,
                 "      <account_key>%s</account_key>\n",
-                p->authenticator
+                p->authenticator.c_str()
             );
         }
         fprintf(f,
@@ -241,11 +241,11 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
         }
     }
     gstate.host_info.write(mf, !cc_config.suppress_net_info, true);
-    if (strlen(gstate.acct_mgr_info.opaque)) {
+    if (!gstate.acct_mgr_info.opaque.empty()) {
         fprintf(f,
             "   <opaque>\n%s\n"
             "   </opaque>\n",
-            gstate.acct_mgr_info.opaque
+            gstate.acct_mgr_info.opaque.c_str()
         );
     }
     gstate.time_stats.write(mf, true);
@@ -263,7 +263,7 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
 
     fprintf(f, "</acct_mgr_request>\n");
     fclose(f);
-    snprintf(buf, sizeof(buf), "%srpc.php", ami.master_url);
+    snprintf(buf, sizeof(buf), "%srpc.php", ami.master_url.c_str());
     retval = gui_http->do_rpc_post(
         this, buf, ACCT_MGR_REQUEST_FILENAME, ACCT_MGR_REPLY_FILENAME, true
     );
@@ -271,7 +271,7 @@ int ACCT_MGR_OP::do_rpc(ACCT_MGR_INFO& _ami, bool _via_gui) {
         error_num = retval;
         return retval;
     }
-    msg_printf(NULL, MSG_INFO, "Contacting account manager at %s", ami.master_url);
+    msg_printf(NULL, MSG_INFO, "Contacting account manager at %s", ami.master_url.c_str());
 
     return 0;
 }
@@ -285,7 +285,7 @@ void AM_ACCOUNT::handle_no_rsc(const char* name, bool value) {
 // parse a project account from AM reply
 //
 int AM_ACCOUNT::parse(XML_PARSER& xp) {
-    char buf[256];
+    std::string buf;
     bool btemp;
     int retval;
     double dtemp;
@@ -298,7 +298,7 @@ int AM_ACCOUNT::parse(XML_PARSER& xp) {
     suspend.init();
     abort_not_started.init();
     url.clear();
-    safe_strcpy(url_signature, "");
+    url_signature.clear();
     authenticator.clear();
     resource_share.init();
 
@@ -318,9 +318,9 @@ int AM_ACCOUNT::parse(XML_PARSER& xp) {
         }
         if (xp.parse_string("url", url)) continue;
         if (xp.match_tag("url_signature")) {
-            retval = xp.element_contents("</url_signature>", url_signature, sizeof(url_signature));
+            retval = copy_element_contents(xp.f->f, "</url_signature>", url_signature);
             if (retval) return retval;
-            safe_strcat(url_signature, "\n");
+            url_signature += "\n";
             continue;
         }
         if (xp.parse_string("authenticator", authenticator)) continue;
@@ -341,8 +341,8 @@ int AM_ACCOUNT::parse(XML_PARSER& xp) {
             continue;
         }
 
-        if (xp.parse_str("no_rsc", buf, sizeof(buf))) {
-            handle_no_rsc(buf, true);
+        if (xp.parse_string("no_rsc", buf)) {
+            handle_no_rsc(buf.c_str(), true);
             continue;
         }
         if (xp.parse_bool("dont_request_more_work", btemp)) {
@@ -394,8 +394,8 @@ int ACCT_MGR_OP::parse(FILE* f) {
     error_str.clear();
     error_num = 0;
     repeat_sec = 0;
-    safe_strcpy(host_venue, "");
-    safe_strcpy(ami.opaque, "");
+    host_venue.clear();
+    ami.opaque.clear();
     ami.no_project_notices = false;
     ami.dynamic = false;
     ami.send_tasks_all = false;
@@ -413,16 +413,16 @@ int ACCT_MGR_OP::parse(FILE* f) {
             continue;
         }
         if (xp.match_tag("/acct_mgr_reply")) return 0;
-        if (xp.parse_str("name", ami.project_name, 256)) continue;
-        if (xp.parse_str("user_name", ami.user_name, sizeof(ami.user_name))) {
+        if (xp.parse_string("name", ami.project_name)) continue;
+        if (xp.parse_string("user_name", ami.user_name)) {
             xml_unescape(ami.user_name);
             continue;
         }
-        if (xp.parse_str("team_name", ami.team_name, sizeof(ami.team_name))) {
+        if (xp.parse_string("team_name", ami.team_name)) {
             xml_unescape(ami.team_name);
             continue;
         }
-        if (xp.parse_str("authenticator", ami.authenticator, 256)) continue;
+        if (xp.parse_string("authenticator", ami.authenticator)) continue;
         if (xp.parse_int("error_num", error_num)) continue;
         if (xp.parse_string("error", error_str)) continue;
         if (xp.parse_string("error_msg", error_str)) continue;
@@ -435,12 +435,12 @@ int ACCT_MGR_OP::parse(FILE* f) {
             continue;
         }
         if (xp.match_tag("opaque")) {
-            retval = xp.element_contents("</opaque>", ami.opaque, sizeof(ami.opaque));
+            retval = copy_element_contents(xp.f->f, "</opaque>", ami.opaque);
             if (retval) return retval;
             continue;
         }
         if (xp.match_tag("signing_key")) {
-            retval = xp.element_contents("</signing_key>", ami.signing_key, sizeof(ami.signing_key));
+            retval = copy_element_contents(xp.f->f, "</signing_key>", ami.signing_key);
             if (retval) return retval;
             continue;
         }
@@ -472,7 +472,7 @@ int ACCT_MGR_OP::parse(FILE* f) {
             }
             continue;
         }
-        if (xp.parse_str("host_venue", host_venue, sizeof(host_venue))) {
+        if (xp.parse_string("host_venue", host_venue)) {
             continue;
         }
         if (xp.match_tag("rss_feeds")) {
@@ -608,7 +608,7 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
     // demand a signing key
     //
     sig_ok = true;
-    if (!strlen(ami.signing_key)) {
+    if (ami.signing_key.empty()) {
         msg_printf(NULL, MSG_INTERNAL_ERROR,
             "No signing key from account manager"
         );
@@ -617,8 +617,8 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
 
     // don't accept new signing key if we already have one
     //
-    if (strlen(gstate.acct_mgr_info.signing_key)
-        && strcmp(gstate.acct_mgr_info.signing_key, ami.signing_key)
+    if (!gstate.acct_mgr_info.signing_key.empty()
+        && gstate.acct_mgr_info.signing_key != ami.signing_key
     ) {
         msg_printf(NULL, MSG_INTERNAL_ERROR,
             "Inconsistent signing key from account manager"
@@ -629,19 +629,19 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
     if (sig_ok) {
         // if the AM RPC had an error, some items may be missing; don't copy
         //
-        if (strlen(ami.project_name)) {
-            safe_strcpy(gstate.acct_mgr_info.project_name, ami.project_name);
+        if (!ami.project_name.empty()) {
+            gstate.acct_mgr_info.project_name = ami.project_name;
         }
-        if (strlen(ami.signing_key)) {
-            safe_strcpy(gstate.acct_mgr_info.signing_key, ami.signing_key);
+        if (!ami.signing_key.empty()) {
+            gstate.acct_mgr_info.signing_key = ami.signing_key;
         }
-        if (strlen(ami.opaque)) {
-            safe_strcpy(gstate.acct_mgr_info.opaque, ami.opaque);
+        if (!ami.opaque.empty()) {
+            gstate.acct_mgr_info.opaque = ami.opaque;
         }
-        safe_strcpy(gstate.acct_mgr_info.master_url, ami.master_url);
-        safe_strcpy(gstate.acct_mgr_info.login_name, ami.login_name);
-        safe_strcpy(gstate.acct_mgr_info.password_hash, ami.password_hash);
-        safe_strcpy(gstate.acct_mgr_info.authenticator, ami.authenticator);
+        gstate.acct_mgr_info.master_url = ami.master_url;
+        gstate.acct_mgr_info.login_name = ami.login_name;
+        gstate.acct_mgr_info.password_hash = ami.password_hash;
+        gstate.acct_mgr_info.authenticator = ami.authenticator;
         gstate.acct_mgr_info.no_project_notices = ami.no_project_notices;
         gstate.acct_mgr_info.dynamic = ami.dynamic;
         gstate.acct_mgr_info.send_tasks_active = ami.send_tasks_active;
@@ -662,14 +662,14 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
                     // had the current account info
                     //
                     if (acct.authenticator.size()) {
-                        if (strcmp(pp->authenticator, acct.authenticator.c_str())) {
+                        if (pp->authenticator != acct.authenticator) {
                             // if old and new auths are both weak,
                             // use the new one
                             //
-                            if (is_weak_auth(pp->authenticator)
+                            if (is_weak_auth(pp->authenticator.c_str())
                                 && is_weak_auth(acct.authenticator.c_str())
                             ) {
-                                safe_strcpy(pp->authenticator, acct.authenticator.c_str());
+                                pp->authenticator = acct.authenticator;
                                 msg_printf(pp, MSG_INFO,
                                     "Received new authenticator from account manager"
                                 );
@@ -713,7 +713,7 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
                         if (pp->ams_resource_share >= 0) {
                             pp->ams_resource_share = -1;
                             PROJECT p2;
-                            safe_strcpy(p2.master_url, pp->master_url);
+                            p2.master_url = pp->master_url;
                             retval = p2.parse_account_file();
                             if (!retval) {
                                 pp->resource_share = p2.resource_share;
@@ -747,7 +747,7 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
                 }
 
                 retval = check_string_signature2(
-                    acct.url.c_str(), acct.url_signature, ami.signing_key, verified
+                    acct.url.c_str(), acct.url_signature.c_str(), ami.signing_key.c_str(), verified
                 );
                 if (retval || !verified) {
                     msg_printf(NULL, MSG_INTERNAL_ERROR,
@@ -793,8 +793,8 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
 
 #ifdef USE_NET_PREFS
         bool read_prefs = false;
-        if (strlen(host_venue) && strcmp(host_venue, gstate.main_host_venue)) {
-            safe_strcpy(gstate.main_host_venue, host_venue);
+        if (!host_venue.empty() && strcmp(host_venue.c_str(), gstate.main_host_venue)) {
+            safe_strcpy(gstate.main_host_venue, host_venue.c_str());
             read_prefs = true;
         }
 
@@ -814,7 +814,7 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
             }
             if (use_am_prefs) {
                 retval = gstate.save_global_prefs(
-                    global_prefs_xml.c_str(), ami.master_url, ami.master_url
+                    global_prefs_xml.c_str(), (char*)ami.master_url.c_str(), (char*)ami.master_url.c_str()
                 );
                 if (retval) {
                     msg_printf(NULL, MSG_INTERNAL_ERROR, "Can't save global prefs");
@@ -837,11 +837,9 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
         ::rss_feeds.update_feed_list();
     }
 
-    safe_strcpy(gstate.acct_mgr_info.user_name, ami.user_name);
-    safe_strcpy(gstate.acct_mgr_info.team_name, ami.team_name);
-    safe_strcpy(
-        gstate.acct_mgr_info.previous_host_cpid, gstate.host_info.host_cpid
-    );
+    gstate.acct_mgr_info.user_name = ami.user_name;
+    gstate.acct_mgr_info.team_name = ami.team_name;
+    gstate.acct_mgr_info.previous_host_cpid = gstate.host_info.host_cpid;
     if (repeat_sec) {
         gstate.acct_mgr_info.next_rpc_time = gstate.now + repeat_sec;
     } else {
@@ -858,7 +856,7 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
 //
 int ACCT_MGR_INFO::write_info() {
     FILE* f;
-    if (strlen(master_url)) {
+    if (!master_url.empty()) {
         f = fopen(ACCT_MGR_URL_FILENAME, "w");
         if (!f) {
             msg_printf(NULL, MSG_USER_ALERT,
@@ -871,16 +869,16 @@ int ACCT_MGR_INFO::write_info() {
             "<acct_mgr>\n"
             "    <name>%s</name>\n"
             "    <url>%s</url>\n",
-            project_name,
-            master_url
+            project_name.c_str(),
+            master_url.c_str()
         );
         if (send_gui_rpc_info) {
             fprintf(f, "    <send_gui_rpc_info/>\n");
         }
-        if (strlen(signing_key)) {
+        if (!signing_key.empty()) {
             fprintf(f,
                 "    <signing_key>\n%s\n</signing_key>\n",
-                signing_key
+                signing_key.c_str()
             );
         }
         fprintf(f,
@@ -889,7 +887,7 @@ int ACCT_MGR_INFO::write_info() {
         fclose(f);
     }
 
-    if (strlen(login_name) || strlen(authenticator)) {
+    if (!login_name.empty() || !authenticator.empty()) {
         f = fopen(ACCT_MGR_LOGIN_FILENAME, "w");
         if (!f) {
             msg_printf(NULL, MSG_USER_ALERT,
@@ -901,17 +899,17 @@ int ACCT_MGR_INFO::write_info() {
         fprintf(f,
             "<acct_mgr_login>\n"
         );
-        if (strlen(authenticator)) {
+        if (!authenticator.empty()) {
             fprintf(f,
                 "    <authenticator>%s</authenticator>\n",
-                authenticator
+                authenticator.c_str()
             );
         } else {
             fprintf(f,
                 "    <login>%s</login>\n"
                 "    <password_hash>%s</password_hash>\n",
-                login_name,
-                password_hash
+                login_name.c_str(),
+                password_hash.c_str()
             );
         }
         fprintf(f,
@@ -921,19 +919,19 @@ int ACCT_MGR_INFO::write_info() {
             "    </opaque>\n"
             "    <no_project_notices>%d</no_project_notices>\n"
             "    <dynamic>%d</dynamic>\n",
-            previous_host_cpid,
+            previous_host_cpid.c_str(),
             next_rpc_time,
-            opaque,
+            opaque.c_str(),
             no_project_notices?1:0,
             dynamic?1:0
         );
         char buf[4096];
-        if (strlen(user_name)) {
-            xml_escape(user_name, buf, sizeof(buf));
+        if (!user_name.empty()) {
+            xml_escape(user_name.c_str(), buf, sizeof(buf));
             fprintf(f,    "<user_name>%s</user_name>\n", buf);
         }
-        if (strlen(team_name)) {
-            xml_escape(team_name, buf, sizeof(buf));
+        if (!team_name.empty()) {
+            xml_escape(team_name.c_str(), buf, sizeof(buf));
             fprintf(f,    "<team_name>%s</team_name>\n", buf);
         }
 
@@ -948,17 +946,17 @@ int ACCT_MGR_INFO::write_info() {
 }
 
 void ACCT_MGR_INFO::clear() {
-    safe_strcpy(project_name, "");
-    safe_strcpy(master_url, "");
-    safe_strcpy(login_name, "");
-    safe_strcpy(user_name, "");
-    safe_strcpy(team_name, "");
-    safe_strcpy(password_hash, "");
-    safe_strcpy(authenticator, "");
-    safe_strcpy(signing_key, "");
-    safe_strcpy(previous_host_cpid, "");
-    safe_strcpy(opaque, "");
-    safe_strcpy(cookie_failure_url, "");
+    project_name.clear();
+    master_url.clear();
+    login_name.clear();
+    user_name.clear();
+    team_name.clear();
+    password_hash.clear();
+    authenticator.clear();
+    signing_key.clear();
+    previous_host_cpid.clear();
+    opaque.clear();
+    cookie_failure_url.clear();
     next_rpc_time = 0;
     nfailures = 0;
     send_gui_rpc_info = false;
@@ -995,13 +993,13 @@ int ACCT_MGR_INFO::parse_login_file(FILE* p) {
             continue;
         }
         if (xp.match_tag("/acct_mgr_login")) break;
-        if (xp.parse_str("login", login_name, 256)) continue;
-        if (xp.parse_str("password_hash", password_hash, 256)) continue;
-        if (xp.parse_str("authenticator", authenticator, 256)) continue;
-        if (xp.parse_str("previous_host_cpid", previous_host_cpid, sizeof(previous_host_cpid))) continue;
+        if (xp.parse_string("login", login_name)) continue;
+        if (xp.parse_string("password_hash", password_hash)) continue;
+        if (xp.parse_string("authenticator", authenticator)) continue;
+        if (xp.parse_string("previous_host_cpid", previous_host_cpid)) continue;
         if (xp.parse_double("next_rpc_time", next_rpc_time)) continue;
         if (xp.match_tag("opaque")) {
-            retval = xp.element_contents("</opaque>", opaque, sizeof(opaque));
+            retval = copy_element_contents(xp.f->f, "</opaque>", opaque);
             if (retval) {
                 msg_printf(NULL, MSG_INFO,
                     "error parsing <opaque> in acct_mgr_login.xml"
@@ -1009,11 +1007,11 @@ int ACCT_MGR_INFO::parse_login_file(FILE* p) {
             }
             continue;
         }
-        if (xp.parse_str("user_name", user_name, sizeof(user_name))) {
+        if (xp.parse_string("user_name", user_name)) {
             xml_unescape(user_name);
             continue;
         }
-        if (xp.parse_str("team_name", team_name, sizeof(team_name))) {
+        if (xp.parse_string("team_name", team_name)) {
             xml_unescape(team_name);
             continue;
         }
@@ -1071,11 +1069,11 @@ int ACCT_MGR_INFO::init() {
             continue;
         }
         if (xp.match_tag("/acct_mgr")) break;
-        else if (xp.parse_str("name", project_name, 256)) continue;
-        else if (xp.parse_str("url", master_url, 256)) continue;
+        else if (xp.parse_string("name", project_name)) continue;
+        else if (xp.parse_string("url", master_url)) continue;
         else if (xp.parse_bool("send_gui_rpc_info", send_gui_rpc_info)) continue;
         else if (xp.match_tag("signing_key")) {
-            retval = xp.element_contents("</signing_key>", signing_key, sizeof(signing_key));
+            retval = copy_element_contents(xp.f->f, "</signing_key>", signing_key);
             if (retval) {
                 msg_printf(NULL, MSG_INFO,
                     "error parsing <signing_key> in acct_mgr_url.xml"
@@ -1084,7 +1082,7 @@ int ACCT_MGR_INFO::init() {
             continue;
         }
         else if (xp.parse_bool("cookie_required", cookie_required)) continue;
-        else if (xp.parse_str("cookie_failure_url", cookie_failure_url, 256)) continue;
+        else if (xp.parse_string("cookie_failure_url", cookie_failure_url)) continue;
         if (log_flags.unparsed_xml) {
             msg_printf(NULL, MSG_INFO,
                 "[unparsed_xml] ACCT_MGR_INFO::init: unrecognized %s",
@@ -1101,9 +1099,9 @@ int ACCT_MGR_INFO::init() {
         fclose(p);
     }
     if (using_am()) {
-        msg_printf(NULL, MSG_INFO, "Using account manager %s", project_name);
-        if (strlen(user_name)) {
-            msg_printf(NULL, MSG_INFO, "Account manager login: %s", user_name);
+        msg_printf(NULL, MSG_INFO, "Using account manager %s", project_name.c_str());
+        if (!user_name.empty()) {
+            msg_printf(NULL, MSG_INFO, "Account manager login: %s", user_name.c_str());
         }
     }
     return 0;
@@ -1184,7 +1182,7 @@ bool ACCT_MGR_INFO::poll() {
             }
             msg_printf(NULL, MSG_INFO,
                 "Some devices idle - requesting new projects from %s",
-                gstate.acct_mgr_info.project_name
+                gstate.acct_mgr_info.project_name.c_str()
             );
             gstate.acct_mgr_op.do_rpc(*this, false);
             starved_rpc_backoff *= 2;

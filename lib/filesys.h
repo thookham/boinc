@@ -49,6 +49,7 @@ extern "C" {
     extern int boinc_file_or_symlink_exists(const char* path);
 #ifdef _WIN32
     extern FILE* boinc_temp_file(const char* dir, const char* prefix, char* temp_path, double size);
+    extern int boinc_allocate_file(const char* path, double size);
 #else
     extern FILE* boinc_temp_file(const char* dir, const char* prefix, char* temp_path);
 #endif

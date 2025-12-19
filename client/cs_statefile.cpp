@@ -159,7 +159,7 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             if (!project) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Application %s outside project in state file",
-                    app->name
+                    app->name.c_str()
                 );
                 apps.pop_back();
                 continue;
@@ -179,7 +179,7 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             if (retval) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "Can't handle application %s in state file",
-                    app->name
+                    app->name.c_str()
                 );
                 apps.pop_back();
                 continue;
@@ -212,7 +212,7 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             if (retval) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "Can't handle file info %s in state file",
-                    fip->name
+                    fip->name.c_str()
                 );
                 file_infos.pop_back();
                 continue;
@@ -233,14 +233,14 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                 if (retval) {
                     msg_printf(project, MSG_INTERNAL_ERROR,
                         "Can't initialize file transfer for %s",
-                        fip->name
+                        fip->name.c_str()
                     );
                 }
                 retval = pers_file_xfers->insert(fip->pers_file_xfer);
                 if (retval) {
                     msg_printf(project, MSG_INTERNAL_ERROR,
                         "Can't start persistent file transfer for %s",
-                        fip->name
+                        fip->name.c_str()
                     );
                 }
             }
@@ -269,10 +269,10 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
                 app_versions.pop_back();
                 continue;
             }
-            if (strlen(avp->platform) == 0) {
-                safe_strcpy(avp->platform, get_primary_platform());
+            if (avp->platform.empty()) {
+                avp->platform = get_primary_platform();
             } else {
-                if (!is_supported_platform(avp->platform)) {
+                if (!is_supported_platform(avp->platform.c_str())) {
                     // if it's a platform we haven't heard of,
                     // must be that the user tried out a 64 bit client
                     // and then reverted to a 32-bit client.
@@ -281,10 +281,10 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
 #ifndef SIM
                     msg_printf(project, MSG_INTERNAL_ERROR,
                         "App version has unsupported platform %s; changing to %s",
-                        avp->platform, get_primary_platform()
+                        avp->platform.c_str(), get_primary_platform()
                     );
 #endif
-                    safe_strcpy(avp->platform, get_primary_platform());
+                    avp->platform = get_primary_platform();
                 }
             }
             if (avp->resource_usage.missing_coproc) {
@@ -344,7 +344,7 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             if (!project) {
                 msg_printf(NULL, MSG_INTERNAL_ERROR,
                     "Task %s outside project in state file",
-                    rp->name
+                    rp->name.c_str()
                 );
                 results.pop_back();
                 continue;
@@ -360,7 +360,7 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             if (retval) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "Can't link task %s in state file",
-                    rp->name
+                    rp->name.c_str()
                 );
                 results.pop_back();
                 continue;
@@ -369,22 +369,22 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
             // skip for anon platform and emulator
             //
 #ifdef SIM
-            safe_strcpy(rp->platform, get_primary_platform());
+            rp->platform = get_primary_platform();
 #else
             if (!project->anonymous_platform) {
-                if (!strlen(rp->platform) || !is_supported_platform(rp->platform)) {
-                    safe_strcpy(rp->platform, get_primary_platform());
-                    rp->version_num = latest_version(rp->wup->app, rp->platform);
+                if (rp->platform.empty() || !is_supported_platform(rp->platform.c_str())) {
+                    rp->platform = get_primary_platform();
+                    rp->version_num = latest_version(rp->wup->app, rp->platform.c_str());
                 }
             }
 #endif
             rp->avp = lookup_app_version(
-                rp->wup->app, rp->platform, rp->version_num, rp->plan_class
+                rp->wup->app, rp->platform.c_str(), rp->version_num, rp->plan_class.c_str()
             );
             if (!rp->avp) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "No application found for task %s: platform %s version %d plan class %s; discarding",
-                    rp->wup->name, rp->platform, rp->version_num, rp->plan_class
+                    rp->wup->name.c_str(), rp->platform.c_str(), rp->version_num, rp->plan_class.c_str()
                 );
                 results.pop_back();
                 continue;
@@ -579,9 +579,9 @@ int CLIENT_STATE::parse_state_file_aux(const char* fname) {
 void CLIENT_STATE::sort_results() {
     unsigned int i;
     for (i=0; i<results.size(); i++) {
-        RESULT* rp = results[i];
+        RESULT* rp = results[i].get();
         if (rp) {
-            rp->name_md5 = md5_string(string(rp->name));
+            rp->name_md5 = md5_string(rp->name.c_str());
         }
     }
     std::sort(
@@ -590,7 +590,7 @@ void CLIENT_STATE::sort_results() {
         arrived_first
     );
     for (i=0; i<results.size(); i++) {
-        RESULT* rp = results[i];
+        RESULT* rp = results[i].get();
         if (rp) {
             rp->index = i;
         }
@@ -926,7 +926,7 @@ int CLIENT_STATE::parse_app_info(PROJECT* p, FILE* in) {
                 safe_strcpy(buf,
                     _("File referenced in app_info.xml does not exist: ")
                 );
-                safe_strcat(buf, fip->name);
+                safe_strcat(buf, fip->name.c_str());
                 msg_printf(p, MSG_USER_ALERT, "%s", buf);
                 delete fip;
                 continue;
@@ -934,7 +934,7 @@ int CLIENT_STATE::parse_app_info(PROJECT* p, FILE* in) {
             fip->nbytes = size;
             fip->status = FILE_PRESENT;
             fip->anonymous_platform_file = true;
-            file_infos.push_back(fip);
+            file_infos.push_back(std::unique_ptr<FILE_INFO>(fip));
             continue;
         }
         if (xp.match_tag("app")) {
@@ -943,12 +943,12 @@ int CLIENT_STATE::parse_app_info(PROJECT* p, FILE* in) {
                 delete app;
                 continue;
             }
-            if (lookup_app(p, app->name)) {
+            if (lookup_app(p, app->name.c_str())) {
                 delete app;
                 continue;
             }
             link_app(p, app);
-            apps.push_back(app);
+            apps.push_back(std::unique_ptr<APP>(app));
             continue;
         }
         if (xp.match_tag("app_version")) {

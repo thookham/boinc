@@ -74,7 +74,7 @@ int APP_CONFIGS::config_app_versions(PROJECT* p, bool show_warnings) {
         const size_t cmdline_len = strlen(avc.cmdline);
         for (auto const& avp : gstate.app_versions) {
             if (avp->app != app) continue;
-            if (strcmp(avp->plan_class, avc.plan_class)) continue;
+            if (strcmp(avp->plan_class.c_str(), avc.plan_class)) continue;
             found = true;
             if (cmdline_len) {
                 safe_strcpy(avp->resource_usage.cmdline, avc.cmdline);

@@ -377,7 +377,7 @@ Karl 2004-01-15
 Karl 2004-01-15
     - renamed user_name to db_user
 
-    - applied changes by Daniel Sumers Myers <dmyers@umiacs.umd.edu>
+    - applied changes by Daniel Sumers Myers <[email_masked]>
         - setup script creates log_<host>
         - add support for <db_user> field in config.XML in C, python, php
         - missing default project.inc.sample fields
@@ -5236,7 +5236,7 @@ David 22 June 2004
         trickle_handler.C
 
 Karl 2004-06-24
-    - OpenBSD compile fixes from Daniel Hartmeier <daniel@benzedrine.cx>
+    - OpenBSD compile fixes from Daniel Hartmeier <[email_masked]>
 
     lib/
         util.C
@@ -5301,7 +5301,7 @@ Rom    25 June 2004
         util.inc
 
 Karl 2004-06-27
-    - fix to log directory creation from Chrischan <christian.linder@uni-bielefeld.de>
+    - fix to log directory creation from Chrischan <[email_masked]>
 
     sched/
         main.C
@@ -5980,7 +5980,7 @@ David  7 July 2004
         app_ipc.C,h
 
 Daniel 2004-07-08
-    - NetBSD compile fixes from John Klos <john@ziaspace.com>
+    - NetBSD compile fixes from John Klos <[email_masked]>
         (just added __NetBSD__ wherever __OpenBSD__ appeared)
 
     lib/
@@ -7571,7 +7571,7 @@ Rom    16 Aug 2004
       assorted things, I finally can build the cross platform GUI again.
 
       The default project builds for the wxWidgets static library, MSVCRT 
-      static library, and STL static library really don’t like each other. 
+      static library, and STL static library really donï¿½t like each other. 
       It took a few days to get things to a point they would compile, and we 
       still throw a few warnings on the release build.
 
@@ -10820,7 +10820,7 @@ David  17 Nov 2004
     [Note inserted by Bruce the next day. ANSI-C 4.6.2.1 says: "The
     longjmp function ... The longjmp function should not be called in
     an exit handler (i.e., a function registered with the atexit
-    function (see §4.10.4.2)), since it might jump to some code which
+    function (see ï¿½4.10.4.2)), since it might jump to some code which
     is no longer in scope."  This should be OK on OSes that delay image
     teardown until after calling the handler functions, provided that
     the routine calling exit() has cleaned up its memory. An
@@ -11512,7 +11512,7 @@ Rom    2 Dec 2004
         The control grabs the necessary information from the cache instead
         of cycling down to the document.  Due to the way listviews were 
         implemented on some platforms I believe this will fix some refresh
-        problems where the data wasn’t being updated in a timely manor.
+        problems where the data wasnï¿½t being updated in a timely manor.
         This also had the added benefit of increasing performance on displaying
         updates.
     - Fill in the missing piece for the memory leak detection to proplerly
@@ -12900,7 +12900,7 @@ David  22 Dec 2004
 
 Karl 2004-12-25
     - Link to http://bioinformatics.pzr.uni-rostock.de/~moeller/debian/boinc/
-      (Stephen Möller's Debian packages)
+      (Stephen Mï¿½ller's Debian packages)
     - Clarify centiversions
 
     doc/
@@ -13075,7 +13075,7 @@ Bruce 29 Dec 2004
       it doesn't correspond to what the documentation says.
  
       Added hyperlink to WUs on ops pages (Hyperlink to WUs.  Thanks
-      to Christian (DjangoFett@gmx.net).
+      to Christian ([email_masked]).
 
     api/
         x_opengl.C

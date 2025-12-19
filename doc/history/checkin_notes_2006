@@ -3222,7 +3222,7 @@ Walt   23 Mar 2006
 David  24 Mar 2006
     - Let team founders get lists of team members
         (including their email addresses) via XML RPC.
-        The URL is PROJECT/team_email_list.php?teamid=X&account_key=Y&xml=1
+        The URL is PROJECT/team_email_list.php?teamid=X&account_key=[value_masked]
 
         This feature lets cross-project teams more easily get their
         combined email-address list.
@@ -10481,7 +10481,7 @@ Charlie 26 Sept 2006
         BOINC, which substantially improves speed & efficiency. (PROCINFO 
         totals for other processes are not currently used anywhere.)
     - Mac: Set host_info.m_swap to total free disk space, because OS X 
-        uses all of the available space on the machineÕs boot partition
+        uses all of the available space on the machineï¿½s boot partition
         for swap space if needed.
 
     client/

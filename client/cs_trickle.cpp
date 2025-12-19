@@ -261,7 +261,7 @@ void update_trickle_up_urls(PROJECT* p, vector<string> &urls) {
 
     // remove old URLs
     //
-    vector<TRICKLE_UP_OP*>::iterator iter = p->trickle_up_ops.begin();
+    auto iter = p->trickle_up_ops.begin();
     while (iter != p->trickle_up_ops.end()) {
         TRICKLE_UP_OP *t = *iter;
         bool found = false;
@@ -273,8 +273,7 @@ void update_trickle_up_urls(PROJECT* p, vector<string> &urls) {
             }
         }
         if (!found) {
-            gstate.http_ops->remove(&(t->gui_http->http_op));
-            delete t;
+            t->gui_http->remove(&(t->gui_http->http_op));
             iter = p->trickle_up_ops.erase(iter);
         } else {
             ++iter;

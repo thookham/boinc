@@ -577,7 +577,7 @@ David  8 Feb 2011
 
 David  9 Feb 2011
     - user web: apparently if you put links of the form
-        http://setiathome.berkeley.edu/help.php?key=Viagra.uk
+        http://setiathome.berkeley.edu/help.php?key=[value_masked]
         all over the web, Google will list "Viagra.uk" in your site outline (why??).
         Preliminary checkin for dealing with this.
 
@@ -3396,7 +3396,7 @@ Charlie 7 Jun 2011
 
 Rom    7 Jun 2011
     - MGR: Cleanup compiler warnings. Fixes# 1051
-        (From: Steffen Möller)
+        (From: Steffen Mï¿½ller)
         
     clientgui/
         AdvancedFrame.cpp
@@ -8594,7 +8594,7 @@ Charlie 21 Nov 2011
 
 Rom    21 Nov 2011
     - MGR: const fixes for platform bitmaps.
-      (From: Steffen Möller)
+      (From: Steffen Mï¿½ller)
     - MGR: Add trace statements to help track down RemoveAt bug
     - MGR: Remove static var guard, may not be needed with the SetDlgOpen()
         routines blocking timer based updates.  If there is a buffer overrun

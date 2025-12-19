@@ -46,7 +46,7 @@ Charlie Jan 6 2009
 
 Rom    7 Jan 2009
     - Fix build environment so that it can build the client again
-      (From Nicolás Alvarez)
+      (From Nicolï¿½s Alvarez)
       
     /
         configure.ac
@@ -8218,7 +8218,7 @@ David  27 Sept 2009
 
 Rom    28 Sept 2009
     - client: add missing Windows SKUs.
-        From Robert Kreß
+        From Robert Kreï¿½
     
     client/
         hostinfo_win.cpp
@@ -8298,7 +8298,7 @@ Rom    1 Oct 2009
 
 Rom    1 Oct 2009
     - lib: Fix memory/resource leak.
-        (From Nicolás Alvarez)
+        (From Nicolï¿½s Alvarez)
         
     lib/
         shmem.cpp
@@ -8313,7 +8313,7 @@ Rom    1 Oct 2009
 
 Rom    1 Oct 2009
     - lib: Fix memory/resource leak.
-        (From Nicolás Alvarez)
+        (From Nicolï¿½s Alvarez)
         
     lib/
         shmem.cpp
@@ -8436,7 +8436,7 @@ Rom    5 Oct 2009
 
 Rom    5 Oct 2009
     - client: Fix crash that was introduced 7 months ago.
-        (From Nicolás Alvarez)
+        (From Nicolï¿½s Alvarez)
         
     client/
         app_control.cpp
@@ -8956,7 +8956,7 @@ David  6 Nov 2009
 
 David  6 Nov 2009
     - client: parse HTTP_PROXY strings of the form
-        http://username:passwd@host.dom.dom:port/file
+        http://username:[email_masked]:port/file
         (we weren't parsing the username and password before).
     - client: fix the feature that lets you exclude a list of hosts
         from going the proxy.

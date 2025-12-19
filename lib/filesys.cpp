@@ -7,7 +7,10 @@
 // as published by the Free Software Foundation,
 // either version 3 of the License, or (at your option) any later version.
 
+#ifndef _WIN32
 #include "cpp.h"
+#endif
+
 #include "filesys.h"
 #include "error_numbers.h"
 #include "str_replace.h"
@@ -380,3 +383,32 @@ int FILE_LOCK::unlock(const char* filename) {
     boinc_delete_file(filename);
     return 0;
 }
+
+#ifdef _WIN32
+// Pre-allocate file space on Windows to reduce fragmentation
+int boinc_allocate_file(const char* path, double size) {
+    HANDLE hFile = CreateFileA(
+        path,
+        GENERIC_WRITE,
+        0,
+        NULL,
+        CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL
+    );
+    if (hFile == INVALID_HANDLE_VALUE) return -1;
+    
+    LARGE_INTEGER li;
+    li.QuadPart = (LONGLONG)size;
+    if (!SetFilePointerEx(hFile, li, NULL, FILE_BEGIN)) {
+        CloseHandle(hFile);
+        return -1;
+    }
+    if (!SetEndOfFile(hFile)) {
+        CloseHandle(hFile);
+        return -1;
+    }
+    CloseHandle(hFile);
+    return 0;
+}
+#endif

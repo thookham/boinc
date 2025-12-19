@@ -245,3 +245,9 @@ stage/
 # vim temporary files
 *.swp
 
+
+# Build logs
+build_log*.txt
+
+# vcpkg
+vcpkg_installed/

@@ -25,7 +25,9 @@
 #include <ctype.h>
 #endif
 
+#ifndef _WIN32
 #include "config.h"
+#endif
 
 // strlcpy and strlcat guarantee NULL-terminated result
 // (unlike strncpy and strncat)

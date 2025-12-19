@@ -1514,7 +1514,7 @@ Charlie  2 Mar 2010
 
 Rom    2 Mar 2010
     - client: Add missing European SKUs to the host detection code.
-        (from: Robert Kreß)
+        (from: Robert Kreï¿½)
 
     client/
         hostinfo_win.cpp
@@ -4013,7 +4013,7 @@ David  1 Jun 2010
         forum_rss.inc
 
 Rom    2 Jun 2010
-    - MGR: Apply patches submitted by Nicolás Alvarez
+    - MGR: Apply patches submitted by Nicolï¿½s Alvarez
         * Convert tabs to spaces for consistency.
         * Add BOINC copyright/license comment header.
         * Rename the numbered sizer variables to something descriptive and useful.

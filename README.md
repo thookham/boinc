@@ -13,6 +13,11 @@ The goal of this fork is to bring the BOINC middleware into the modern C++ era. 
 * **Code Cleanup**: Removing obsolete components and improving code readability using range-based loops and auto type deduction.
 * **Tech Debt Reduction**: Addressing legacy accumulated technical debt to facilitate future feature development.
 
+## 🚧 Current Status (Dec 2025)
+
+This fork is actively undergoing deep refactoring to enable CMake support on Windows and migrate the codebase to modern C++.
+**Current Focus**: Resolving compilation errors in the optimized Client components (`client/*`), specifically targeting string handling and memory management (`std::unique_ptr`).
+
 ## 🛠️ Build & Installation
 
 ### Windows

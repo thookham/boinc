@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "client_types.h"
-//#include "auto_update.h"
+#include "auto_update.h"
 #include "http_curl.h"
 #include "prefs.h"
 

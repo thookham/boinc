@@ -194,7 +194,7 @@ int FILE_INFO::verify_file(
 
     if (log_flags.async_file_debug) {
         msg_printf(project, MSG_INFO, "[async] verify file (%s): %s",
-            verify_contents?"strict":"not strict", name
+            verify_contents?"strict":"not strict", name.c_str()
         );
     }
 
@@ -252,7 +252,7 @@ int FILE_INFO::verify_file(
         if (show_errors) {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "File %s has wrong size: expected %.0f, got %.0f",
-                name, nbytes, size
+                name.c_str(), nbytes, size
             );
         }
         status = ERR_FILE_WRONG_SIZE;
@@ -264,7 +264,7 @@ int FILE_INFO::verify_file(
     if (signature_required) {
         if (!strlen(file_signature) && !cert_sigs) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "Application file %s missing signature", name
+                "Application file %s missing signature", name.c_str()
             );
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "BOINC cannot accept this file"
@@ -281,7 +281,7 @@ int FILE_INFO::verify_file(
         }
         if (cc_config.use_certs_only) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "Unable to verify %s using certificates", name
+                "Unable to verify %s using certificates", name.c_str()
             );
             return ERR_NO_SIGNATURE;
         }
@@ -314,7 +314,7 @@ int FILE_INFO::verify_file(
         if (retval) {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Signature verification error for %s",
-                name
+                name.c_str()
             );
             error_msg = "signature verification error";
             status = ERR_RSA_FAILED;
@@ -323,7 +323,7 @@ int FILE_INFO::verify_file(
         if (!verified && show_errors) {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Signature verification failed for %s",
-               name
+               name.c_str()
             );
             error_msg = "signature verification failed";
             status = ERR_RSA_FAILED;
@@ -346,7 +346,7 @@ int FILE_INFO::verify_file(
             if (retval) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "MD5 computation error for %s: %s\n",
-                    name, boincerror(retval)
+                    name.c_str(), boincerror(retval)
                 );
                 error_msg = "MD5 computation error";
                 status = retval;
@@ -356,7 +356,7 @@ int FILE_INFO::verify_file(
         if (strcmp(cksum, md5_cksum)) {
             if (show_errors) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
-                    "MD5 check failed for %s", name
+                    "MD5 check failed for %s", name.c_str()
                 );
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "expected %s, got %s\n", md5_cksum, cksum
@@ -449,7 +449,7 @@ bool CLIENT_STATE::create_and_delete_pers_file_xfers() {
                     // do nothing
                 } else if (retval) {
                     msg_printf(fip->project, MSG_INTERNAL_ERROR,
-                        "Checksum or signature error for %s", fip->name
+                        "Checksum or signature error for %s", fip->name.c_str()
                     );
                     fip->status = retval;
                 } else {

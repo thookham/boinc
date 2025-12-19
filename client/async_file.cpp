@@ -230,8 +230,8 @@ void ASYNC_VERIFY::finish() {
     md5_buf[32] = 0;
     if (fip->signature_required) {
         bool verified;
-        retval = check_file_signature2(md5_buf, fip->file_signature,
-            fip->project->code_sign_key, verified
+        retval = check_file_signature2(md5_buf, fip->file_signature.c_str(),
+            fip->project->code_sign_key.c_str(), verified
         );
         if (retval) {
             error(retval);
@@ -242,7 +242,7 @@ void ASYNC_VERIFY::finish() {
             return;
         }
     } else {
-        if (strcmp(md5_buf, fip->md5_cksum)) {
+        if (strcmp(md5_buf, fip->md5_cksum.c_str())) {
             error(ERR_MD5_FAILED);
             return;
         }

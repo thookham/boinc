@@ -20,12 +20,14 @@
 
 //#define DEBUG_CHECK_SECURITY
 
+#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pwd.h>    // getpwnam
 #include <grp.h>
 #include <dirent.h>
+#endif
 #include <cerrno>
 #include "util.h"
 #include "error_numbers.h"
@@ -58,7 +60,7 @@ static int CheckPodmanDirContents(
     int len
 );
 
-#if (! defined(__WXMAC__) && ! defined(_MAC_INSTALLER))
+#if (! defined(__WXMAC__) && ! defined(_MAC_INSTALLER) && ! defined(_WIN32))
 #include "sandbox.h"
 
 static char * PersistentFGets(char *buf, size_t buflen, FILE *f);
@@ -73,6 +75,16 @@ static char         boinc_master_user_name[64];
 static char         boinc_master_group_name[64];
 static char         boinc_project_user_name[64];
 static char         boinc_project_group_name[64];
+
+#ifdef _WIN32
+typedef int gid_t;
+typedef int uid_t;
+typedef int pid_t;
+#define S_ISUID 0
+#define S_ISGID 0
+#define S_ISDIR(m) 0
+#define S_ISLNK(m) 0
+#endif
 
 static gid_t        boinc_master_gid, boinc_project_gid;
 static uid_t        boinc_master_uid, boinc_project_uid;
@@ -167,11 +179,20 @@ int use_sandbox, int isManager, char* path_to_error, int len
         return -1099;
 #endif
     } else {
+#ifndef _WIN32
         boinc_master_uid = geteuid();
         boinc_master_gid = getegid();
+#else
+        boinc_master_uid = 0;
+        boinc_master_gid = 0;
+#endif
     }
 
+#ifndef _WIN32
     retval2 = check_boinc_users_primarygroupIds(useFakeProjectUserAndGroup, isMacInstaller);
+#else
+    retval2 = 0; // Not applicable on Windows
+#endif
 
 #ifdef __APPLE__
     char DataDirPath[MAXPATHLEN];
@@ -344,6 +365,7 @@ int use_sandbox, int isManager, char* path_to_error, int len
 #ifdef _MAC_INSTALLER
     strlcpy(dir_path, dataPath, sizeof(dir_path));  // Installer
 #else       // _MAC_INSTALLER
+#ifndef _WIN32
     gid_t               egid = getegid();
     uid_t               euid = geteuid();
 
@@ -356,6 +378,10 @@ int use_sandbox, int isManager, char* path_to_error, int len
         if (euid != boinc_master_uid)
             return -1020;     // BOINC Client should be running setuid boinc_master
     }
+#else
+    // On Windows, skip Unix-specific geteuid/getegid checks
+    getcwd(dir_path, sizeof(dir_path));
+#endif
 #endif
 
     retval = stat(dir_path, &sbuf);
@@ -680,7 +706,7 @@ static int CheckNestedDirectories(
                         // prevent that. As a backup strategy, we ignore ownership
                         // of files in slot directories under the Manager, and fix
                         // them in the client.
-#if (! defined(__WXMAC__) && ! defined(_MAC_INSTALLER))
+#if (! defined(__WXMAC__) && ! defined(_MAC_INSTALLER) && ! defined(_WIN32))
                         char* s = strstr(full_path, "/slots/");
                         if (s) {
                             s = strchr(s+1, '/');
@@ -843,7 +869,7 @@ static int CheckPodmanDirContents(
 }
 
 
-#if (! defined(__WXMAC__) && ! defined(_MAC_INSTALLER))
+#if (! defined(__WXMAC__) && ! defined(_MAC_INSTALLER) && ! defined(_WIN32))
 
 static char * PersistentFGets(char *buf, size_t buflen, FILE *f) {
     char *p = buf;

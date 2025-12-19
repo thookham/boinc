@@ -1300,7 +1300,7 @@ David  27 Jan 2005
         db_dump.C
 
 David  27 Jan 2005
-    - added utility programs to tools/ (from Christian Søttrup)
+    - added utility programs to tools/ (from Christian Sï¿½ttrup)
 
     tools/
         kill_wu.C
@@ -12516,7 +12516,7 @@ Janus  01 Oct 2005
       the user/mailinglist specified in project.inc.
       All projects that want to make use of this feature should define an 
       email address there like this (in html/project/project.inc):
-      $forum_post_reporting_admin->email_addr="jbk@vgroup.dk";
+      $forum_post_reporting_admin->email_addr="[email_masked]";
       If not defined the users will get a warning when trying to use the
       feature.
     - Fixed a few missing includes in the profile screening ops section

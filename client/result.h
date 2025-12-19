@@ -21,14 +21,14 @@
 #include "project.h"
 
 struct RESULT {
-    char name[256];
-    char wu_name[256];
+    std::string name;
+    std::string wu_name;
     double received_time;   // when we got this from server
     double report_deadline;
     int version_num;        // identifies the app used
-    char plan_class[64];
+    std::string plan_class;
         // used to associate this RESULT with an APP_VERSION
-    char platform[256];
+    std::string platform;
     APP_VERSION* avp;
     std::vector<FILE_REF> output_files;
     bool ready_to_report;
@@ -214,12 +214,12 @@ struct RESULT {
 
     int coproc_indices[MAX_COPROCS_PER_JOB];
         // keep track of coprocessor reservations
-    char resources[256];
+    std::string resources;
         // textual description of resources used
     double schedule_backoff;
         // don't try to schedule until this time
         // (because the app called boinc_temporary_exit())
-    char schedule_backoff_reason[256];
+    std::string schedule_backoff_reason;
 };
 
 #define CONCURRENT_LIMIT_APP        1
@@ -258,9 +258,9 @@ inline void max_concurrent_inc(RESULT* rp) {
 // Keep this consistent with lib/gui_rpc_client.h
 //
 struct OLD_RESULT {
-    char project_url[256];
-    char result_name[256];
-    char app_name[256];
+    std::string project_url;
+    std::string result_name;
+    std::string app_name;
     int exit_status;
     double elapsed_time;
     double cpu_time;

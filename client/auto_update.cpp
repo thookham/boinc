@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with BOINC.  If not, see <http://www.gnu.org/licenses/>.
 
-DEPRECATED - we're not going to do auto-update
+// DEPRECATED - we're not going to do auto-update
 
 #include "cpp.h"
 
@@ -82,7 +82,8 @@ int AUTO_UPDATE::parse(MIOFILE& in) {
             version.parse(in);
         } else if (match_tag(buf, "<file_ref>")) {
             FILE_REF fref;
-            retval = fref.parse(in);
+            XML_PARSER xp(&in);
+            retval = fref.parse(xp);
             if (retval) return retval;
             file_refs.push_back(fref);
         } else {
@@ -147,10 +148,10 @@ int AUTO_UPDATE::validate_and_link(PROJECT* proj) {
     int nmain = 0;
     for (i=0; i<file_refs.size(); i++) {
         FILE_REF& fref = file_refs[i];
-        fip = gstate.lookup_file_info(project, fref.file_name);
+        fip = gstate.lookup_file_info(project, fref.file_name.c_str());
         if (!fip) {
             msg_printf(project, MSG_INTERNAL_ERROR,
-                "missing update file %s", fref.file_name
+                "missing update file %s", fref.file_name.c_str()
             );
             return ERR_INVALID_PARAM;
         }
@@ -206,13 +207,13 @@ void AUTO_UPDATE::install() {
     }
     boinc_version_dir(*project, version, version_dir);
     boinc_getcwd(cwd);
-    argv[0] = fip->name;
+    argv[0] = const_cast<char*>(fip->name.c_str());
     argv[1] = "--install_dir";
     argv[2] = cwd;
     argv[3] = "--run_core";
     argv[4] = 0;
     argc = 4;
-    retval = run_program(version_dir, fip->name, argc, argv, 5, pid);
+    retval = run_program(version_dir, fip->name.c_str(), argc, argv, pid);
     if (retval) {
         msg_printf(NULL, MSG_INTERNAL_ERROR,
             "Couldn't launch updater; staying with current version"

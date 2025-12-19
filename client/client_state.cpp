@@ -703,7 +703,8 @@ int CLIENT_STATE::init() {
     // fill in resource usage for app versions that are missing it
     // (typically anonymous platform)
     //
-    for (APP_VERSION* avp: app_versions) {
+    for (auto& avp_ptr : app_versions) {
+        APP_VERSION* avp = avp_ptr.get();
         if (!avp->resource_usage.avg_ncpus) {
             avp->resource_usage.avg_ncpus = 1;
         }
@@ -1326,8 +1327,9 @@ PROJECT* CLIENT_STATE::lookup_project(const char* master_url) {
     p += 2;
     if (strcasestr(p, "www.") == p) p += 4;
 
-    for (PROJECT *project: projects) {
-        const char* q = strstr(project->master_url, "//");
+    for (auto const& project_ptr : projects) {
+        PROJECT* project = project_ptr.get();
+        const char* q = strstr(project->master_url.c_str(), "//");
         if (!q) continue;
         q += 2;
         if (strcasestr(q, "www.") == q) q += 4;
@@ -1341,37 +1343,37 @@ PROJECT* CLIENT_STATE::lookup_project(const char* master_url) {
 
 APP* CLIENT_STATE::lookup_app(PROJECT* p, const char* name) {
     for (unsigned int i=0; i<apps.size(); i++) {
-        APP* app = apps[i];
-        if (app->project == p && !strcmp(name, app->name)) return app;
+        APP* app = apps[i].get();
+        if (app->project == p && !strcmp(name, app->name.c_str())) return app;
     }
     return 0;
 }
 
 RESULT* CLIENT_STATE::lookup_result(PROJECT* p, const char* name) {
     for (unsigned int i=0; i<results.size(); i++) {
-        RESULT* rp = results[i];
-        if (rp->project == p && !strcmp(name, rp->name)) return rp;
+        RESULT* rp = results[i].get();
+        if (rp->project == p && !strcmp(name, rp->name.c_str())) return rp;
     }
     return 0;
 }
 
 WORKUNIT* CLIENT_STATE::lookup_workunit(PROJECT* p, const char* name) {
     for (unsigned int i=0; i<workunits.size(); i++) {
-        WORKUNIT* wup = workunits[i];
-        if (wup->project == p && !strcmp(name, wup->name)) return wup;
+        WORKUNIT* wup = workunits[i].get();
+        if (wup->project == p && !strcmp(name, wup->name.c_str())) return wup;
     }
     return 0;
 }
 
 APP_VERSION* CLIENT_STATE::lookup_app_version(
-    APP* app, char* platform, int version_num, char* plan_class
+    APP* app, const char* platform, int version_num, const char* plan_class
 ) {
     for (unsigned int i=0; i<app_versions.size(); i++) {
-        APP_VERSION* avp = app_versions[i];
+        APP_VERSION* avp = app_versions[i].get();
         if (avp->app != app) continue;
         if (version_num != avp->version_num) continue;
-        if (strcmp(avp->platform, platform)) continue;
-        if (strcmp(avp->plan_class, plan_class)) continue;
+        if (strcmp(avp->platform.c_str(), platform)) continue;
+        if (strcmp(avp->plan_class.c_str(), plan_class)) continue;
         return avp;
     }
     return 0;
@@ -1379,8 +1381,8 @@ APP_VERSION* CLIENT_STATE::lookup_app_version(
 
 FILE_INFO* CLIENT_STATE::lookup_file_info(PROJECT* p, const char* name) {
     for (unsigned int i=0; i<file_infos.size(); i++) {
-        FILE_INFO* fip = file_infos[i];
-        if (fip->project == p && !strcmp(fip->name, name)) {
+        FILE_INFO* fip = file_infos[i].get();
+        if (fip->project == p && !strcmp(fip->name.c_str(), name)) {
             return fip;
         }
     }
@@ -1392,13 +1394,13 @@ FILE_INFO* CLIENT_STATE::lookup_file_info(PROJECT* p, const char* name) {
 // Return nonzero if already in client state.
 //
 int CLIENT_STATE::link_app(PROJECT* p, APP* app) {
-    if (lookup_app(p, app->name)) return ERR_NOT_UNIQUE;
+    if (lookup_app(p, app->name.c_str())) return ERR_NOT_UNIQUE;
     app->project = p;
     return 0;
 }
 
 int CLIENT_STATE::link_file_info(PROJECT* p, FILE_INFO* fip) {
-    if (lookup_file_info(p, fip->name)) return ERR_NOT_UNIQUE;
+    if (lookup_file_info(p, fip->name.c_str())) return ERR_NOT_UNIQUE;
     fip->project = p;
     return 0;
 }
@@ -1407,21 +1409,21 @@ int CLIENT_STATE::link_app_version(PROJECT* p, APP_VERSION* avp) {
     APP* app;
 
     avp->project = p;
-    app = lookup_app(p, avp->app_name);
+    app = lookup_app(p, avp->app_name.c_str());
     if (!app) {
         msg_printf(p, MSG_INTERNAL_ERROR,
             "State file error: bad application name %s",
-            avp->app_name
+            avp->app_name.c_str()
         );
         return ERR_NOT_FOUND;
     }
     avp->app = app;
 
-    if (lookup_app_version(app, avp->platform, avp->version_num, avp->plan_class)) {
+    if (lookup_app_version(app, avp->platform.c_str(), avp->version_num, avp->plan_class.c_str())) {
 #ifndef SIM
         msg_printf(p, MSG_INTERNAL_ERROR,
             "State file error: duplicate app version: %s %s %d %s",
-            avp->app_name, avp->platform, avp->version_num, avp->plan_class
+            avp->app_name.c_str(), avp->platform.c_str(), avp->version_num, avp->plan_class.c_str()
         );
 #endif
         return ERR_NOT_UNIQUE;
@@ -1434,16 +1436,16 @@ int CLIENT_STATE::link_app_version(PROJECT* p, APP_VERSION* avp) {
 
     for (unsigned int i=0; i<avp->app_files.size(); i++) {
         FILE_REF& file_ref = avp->app_files[i];
-        FILE_INFO* fip = lookup_file_info(p, file_ref.file_name);
+        FILE_INFO* fip = lookup_file_info(p, file_ref.file_name.c_str());
         if (!fip) {
             msg_printf(p, MSG_INTERNAL_ERROR,
                 "State file error: missing application file %s",
-                file_ref.file_name
+                file_ref.file_name.c_str()
             );
             return ERR_NOT_FOUND;
         }
 
-        if (!strcmp(file_ref.open_name, GRAPHICS_APP_FILENAME)) {
+        if (!strcmp(file_ref.open_name.c_str(), GRAPHICS_APP_FILENAME)) {
             avp->graphics_exec_fip = fip;
         }
 
@@ -1462,11 +1464,11 @@ int CLIENT_STATE::link_app_version(PROJECT* p, APP_VERSION* avp) {
 int CLIENT_STATE::link_file_ref(PROJECT* p, FILE_REF* file_refp) {
     FILE_INFO* fip;
 
-    fip = lookup_file_info(p, file_refp->file_name);
+    fip = lookup_file_info(p, file_refp->file_name.c_str());
     if (!fip) {
         msg_printf(p, MSG_INTERNAL_ERROR,
             "State file error: missing file %s",
-            file_refp->file_name
+            file_refp->file_name.c_str()
         );
         return ERR_NOT_FOUND;
     }
@@ -1479,11 +1481,11 @@ int CLIENT_STATE::link_workunit(PROJECT* p, WORKUNIT* wup) {
     unsigned int i;
     int retval;
 
-    app = lookup_app(p, wup->app_name);
+    app = lookup_app(p, wup->app_name.c_str());
     if (!app) {
         msg_printf(p, MSG_INTERNAL_ERROR,
             "State file error: missing application %s",
-            wup->app_name
+            wup->app_name.c_str()
         );
         return ERR_NOT_FOUND;
     }
@@ -1494,7 +1496,7 @@ int CLIENT_STATE::link_workunit(PROJECT* p, WORKUNIT* wup) {
         if (retval) {
             msg_printf(p, MSG_INTERNAL_ERROR,
                 "State file error: missing input file %s\n",
-                wup->input_files[i].file_name
+                wup->input_files[i].file_name.c_str()
             );
             return retval;
         }
@@ -1507,10 +1509,10 @@ int CLIENT_STATE::link_result(PROJECT* p, RESULT* rp) {
     unsigned int i;
     int retval;
 
-    wup = lookup_workunit(p, rp->wu_name);
+    wup = lookup_workunit(p, rp->wu_name.c_str());
     if (!wup) {
         msg_printf(p, MSG_INTERNAL_ERROR,
-            "State file error: missing task %s\n", rp->wu_name
+            "State file error: missing task %s\n", rp->wu_name.c_str()
         );
         return ERR_NOT_FOUND;
     }
@@ -1536,34 +1538,34 @@ void CLIENT_STATE::print_summary() {
     for (i=0; i<projects.size(); i++) {
         t = projects[i]->min_rpc_time;
         if (t) {
-            msg_printf(0, MSG_INFO, "    %s min RPC %f.0 seconds from now", projects[i]->master_url, t-now);
+            msg_printf(0, MSG_INFO, "    %s min RPC %f.0 seconds from now", projects[i]->master_url.c_str(), t-now);
         } else {
-            msg_printf(0, MSG_INFO, "    %s", projects[i]->master_url);
+            msg_printf(0, MSG_INFO, "    %s", projects[i]->master_url.c_str());
         }
     }
     msg_printf(0, MSG_INFO, "%d file_infos:", (int)file_infos.size());
     for (i=0; i<file_infos.size(); i++) {
-        msg_printf(0, MSG_INFO, "    %s status:%d %s", file_infos[i]->name, file_infos[i]->status, file_infos[i]->pers_file_xfer?"active":"inactive");
+        msg_printf(0, MSG_INFO, "    %s status:%d %s", file_infos[i]->name.c_str(), file_infos[i]->status, file_infos[i]->pers_file_xfer?"active":"inactive");
     }
     msg_printf(0, MSG_INFO, "%d app_versions", (int)app_versions.size());
     for (i=0; i<app_versions.size(); i++) {
-        msg_printf(0, MSG_INFO, "    %s %d", app_versions[i]->app_name, app_versions[i]->version_num);
+        msg_printf(0, MSG_INFO, "    %s %d", app_versions[i]->app_name.c_str(), app_versions[i]->version_num);
     }
     msg_printf(0, MSG_INFO, "%d workunits", (int)workunits.size());
     for (auto const& wup : workunits) {
-        msg_printf(0, MSG_INFO, "    %s", wup->name);
+        msg_printf(0, MSG_INFO, "    %s", wup->name.c_str());
     }
     msg_printf(0, MSG_INFO, "%d results", (int)results.size());
     for (auto const& rp : results) {
-        msg_printf(0, MSG_INFO, "    %s state:%d", rp->name, rp->state());
+        msg_printf(0, MSG_INFO, "    %s state:%d", rp->name.c_str(), rp->state());
     }
     msg_printf(0, MSG_INFO, "%d persistent file xfers", (int)pers_file_xfers->pers_file_xfers.size());
     for (auto const& pers_file_xfer : pers_file_xfers->pers_file_xfers) {
-        msg_printf(0, MSG_INFO, "    %s http op state: %d", pers_file_xfer->fip->name, pers_file_xfer->fxp?pers_file_xfer->fxp->http_op_state:-1);
+        msg_printf(0, MSG_INFO, "    %s http op state: %d", pers_file_xfer->fip->name.c_str(), pers_file_xfer->fxp?pers_file_xfer->fxp->http_op_state:-1);
     }
     msg_printf(0, MSG_INFO, "%d active tasks", (int)active_tasks.active_tasks.size());
     for (auto const& atp : active_tasks.active_tasks) {
-        msg_printf(0, MSG_INFO, "    %s", atp->result->name);
+        msg_printf(0, MSG_INFO, "    %s", atp->result->name.c_str());
     }
 }
 
@@ -1579,12 +1581,12 @@ bool CLIENT_STATE::abort_unstarted_late_jobs() {
     bool action = false;
     if (now < 1235668593) return false; // skip if user reset system clock
     for (unsigned int i=0; i<results.size(); i++) {
-        RESULT* rp = results[i];
+        RESULT* rp = results[i].get();
         if (!rp->is_not_started()) continue;
         if (rp->report_deadline > now) continue;
         msg_printf(rp->project, MSG_INFO,
             "Aborting task %s; not started and deadline has passed",
-            rp->name
+            rp->name.c_str()
         );
         rp->abort_inactive(EXIT_UNSTARTED_LATE);
         action = true;
@@ -1613,7 +1615,7 @@ bool CLIENT_STATE::garbage_collect() {
     while (1) {
         bool found = false;
         for (unsigned i=0; i<projects.size(); i++) {
-            PROJECT* p = projects[i];
+            PROJECT* p = projects[i].get();
             if (p->detach_when_done && !nresults_for_project(p)) {
                 // If we're using an AM,
                 // wait until the next successful RPC to detach project,
@@ -1642,10 +1644,10 @@ bool CLIENT_STATE::garbage_collect_always() {
     RESULT* rp;
     WORKUNIT* wup;
     APP_VERSION* avp, *avp2;
-    vector<RESULT*>::iterator result_iter;
-    vector<WORKUNIT*>::iterator wu_iter;
-    vector<FILE_INFO*>::iterator fi_iter;
-    vector<APP_VERSION*>::iterator avp_iter;
+    vector<std::unique_ptr<RESULT>>::iterator result_iter;
+    vector<std::unique_ptr<WORKUNIT>>::iterator wu_iter;
+    vector<std::unique_ptr<FILE_INFO>>::iterator fi_iter;
+    vector<std::unique_ptr<APP_VERSION>>::iterator avp_iter;
     bool action = false, found;
     string error_msgs;
     PROJECT* project;
@@ -1653,22 +1655,22 @@ bool CLIENT_STATE::garbage_collect_always() {
     // zero references counts on WUs, FILE_INFOs and APP_VERSIONs
 
     for (i=0; i<workunits.size(); i++) {
-        wup = workunits[i];
+        wup = workunits[i].get();
         wup->ref_cnt = 0;
     }
     for (i=0; i<file_infos.size(); i++) {
-        fip = file_infos[i];
+        fip = file_infos[i].get();
         fip->ref_cnt = 0;
     }
     for (i=0; i<app_versions.size(); i++) {
-        avp = app_versions[i];
+        avp = app_versions[i].get();
         avp->ref_cnt = 0;
     }
 
     // reference-count user and project files
     //
     for (i=0; i<projects.size(); i++) {
-        project = projects[i];
+        project = projects[i].get();
         for (j=0; j<project->user_files.size(); j++) {
             project->user_files[j].file_info->ref_cnt++;
         }
@@ -1696,7 +1698,7 @@ bool CLIENT_STATE::garbage_collect_always() {
     //
     result_iter = results.begin();
     while (result_iter != results.end()) {
-        rp = *result_iter;
+        rp = result_iter->get();
 #ifndef SIM
         if (rp->got_server_ack) {
             // see if - for some reason - there's an active task
@@ -1706,7 +1708,7 @@ bool CLIENT_STATE::garbage_collect_always() {
             if (atp) {
                 msg_printf(rp->project, MSG_INTERNAL_ERROR,
                     "garbage_collect(); still have active task for acked result %s; state %d",
-                    rp->name, atp->task_state()
+                    rp->name.c_str(), atp->task_state()
                 );
                 atp->abort_task(
                     EXIT_ABORTED_BY_CLIENT,
@@ -1789,15 +1791,14 @@ bool CLIENT_STATE::garbage_collect_always() {
     //
     wu_iter = workunits.begin();
     while (wu_iter != workunits.end()) {
-        wup = *wu_iter;
+        wup = wu_iter->get();
         if (wup->ref_cnt == 0) {
             if (log_flags.state_debug) {
                 msg_printf(0, MSG_INFO,
                     "[state] CLIENT_STATE::garbage_collect(): deleting workunit %s\n",
-                    wup->name
+                    wup->name.c_str()
                 );
             }
-            delete wup;
             wu_iter = workunits.erase(wu_iter);
             action = true;
         } else {
@@ -1815,22 +1816,21 @@ bool CLIENT_STATE::garbage_collect_always() {
     //
     avp_iter = app_versions.begin();
     while (avp_iter != app_versions.end()) {
-        avp = *avp_iter;
+        avp = avp_iter->get();
         if (avp->ref_cnt == 0) {
             found = false;
             for (j=0; j<app_versions.size(); j++) {
-                avp2 = app_versions[j];
+                avp2 = app_versions[j].get();
                 if (avp2->app == avp->app
                     && avp2->version_num > avp->version_num
-                    && (!strcmp(avp2->plan_class, avp->plan_class))
-                    && (!strcmp(avp2->platform, avp->platform))
+                    && (avp2->plan_class == avp->plan_class)
+                    && (avp2->platform == avp->platform)
                 ) {
                     found = true;
                     break;
                 }
             }
             if (found) {
-                delete avp;
                 avp_iter = app_versions.erase(avp_iter);
                 action = true;
             } else {
@@ -1845,7 +1845,7 @@ bool CLIENT_STATE::garbage_collect_always() {
     // bumping refcnt of associated files.
     //
     for (i=0; i<app_versions.size(); i++) {
-        avp = app_versions[i];
+        avp = app_versions[i].get();
         for (j=0; j<avp->app_files.size(); j++) {
             avp->app_files[j].file_info->ref_cnt++;
         }
@@ -1855,7 +1855,7 @@ bool CLIENT_STATE::garbage_collect_always() {
     //
 
     for (fi_iter = file_infos.begin(); fi_iter!=file_infos.end(); ++fi_iter) {
-        fip = *fi_iter;
+        fip = fi_iter->get();
         if (fip->sticky_expire_time && now > fip->sticky_expire_time) {
             fip->sticky = false;
             fip->sticky_expire_time = 0;
@@ -1868,13 +1868,10 @@ bool CLIENT_STATE::garbage_collect_always() {
     // remove PERS_FILE_XFERs (and associated FILE_XFERs and HTTP_OPs)
     // for unreferenced files
     //
-    vector<PERS_FILE_XFER*>::iterator pfx_iter;
-    pfx_iter = pers_file_xfers->pers_file_xfers.begin();
-    while (pfx_iter != pers_file_xfers->pers_file_xfers.end()) {
+    for (auto pfx_iter = pers_file_xfers->pers_file_xfers.begin(); pfx_iter != pers_file_xfers->pers_file_xfers.end(); ) {
         PERS_FILE_XFER* pfx = *pfx_iter;
         if (pfx->fip->ref_cnt == 0) {
             pfx->suspend();
-            delete pfx;
             pfx_iter = pers_file_xfers->pers_file_xfers.erase(pfx_iter);
         } else {
             ++pfx_iter;
@@ -1883,18 +1880,16 @@ bool CLIENT_STATE::garbage_collect_always() {
 
     // delete FILE_INFOs (and corresponding files) that are not referenced
     //
-    fi_iter = file_infos.begin();
-    while (fi_iter != file_infos.end()) {
-        fip = *fi_iter;
+    for (auto fi_iter = file_infos.begin(); fi_iter != file_infos.end(); ) {
+        FILE_INFO* fip = fi_iter->get();
         if (fip->ref_cnt==0) {
             fip->delete_file();
             if (log_flags.state_debug) {
                 msg_printf(0, MSG_INFO,
                     "[state] CLIENT_STATE::garbage_collect(): deleting file %s\n",
-                    fip->name
+                    fip->name.c_str()
                 );
             }
-            delete fip;
             fi_iter = file_infos.erase(fi_iter);
             action = true;
         } else {
@@ -1916,16 +1911,15 @@ bool CLIENT_STATE::garbage_collect_always() {
 //
 bool CLIENT_STATE::update_results() {
     RESULT* rp;
-    vector<RESULT*>::iterator result_iter;
     bool action = false;
     static double last_time=0;
 
     if (!clock_change && now - last_time < UPDATE_RESULTS_PERIOD) return false;
     last_time = now;
 
-    result_iter = results.begin();
+    auto result_iter = results.begin();
     while (result_iter != results.end()) {
-        rp = *result_iter;
+        rp = result_iter->get();
 
         switch (rp->state()) {
         case RESULT_NEW:
@@ -2125,8 +2119,6 @@ int CLIENT_STATE::reset_project(PROJECT* project, bool detaching) {
     unsigned int i;
     APP_VERSION* avp;
     APP* app;
-    vector<APP*>::iterator app_iter;
-    vector<APP_VERSION*>::iterator avp_iter;
     RESULT* rp;
     PERS_FILE_XFER* pxp;
 
@@ -2161,7 +2153,7 @@ int CLIENT_STATE::reset_project(PROJECT* project, bool detaching) {
     // and in turn their WUs will be deleted
     //
     for (i=0; i<results.size(); i++) {
-        rp = results[i];
+        rp = results[i].get();
         if (rp->project == project) {
             rp->got_server_ack = true;
         }
@@ -2173,7 +2165,7 @@ int CLIENT_STATE::reset_project(PROJECT* project, bool detaching) {
     // clear flags so that sticky files get deleted
     //
     for (i=0; i<file_infos.size(); i++) {
-        FILE_INFO* fip = file_infos[i];
+        FILE_INFO* fip = file_infos[i].get();
         if (fip->project == project) {
             fip->sticky = false;
         }
@@ -2184,23 +2176,21 @@ int CLIENT_STATE::reset_project(PROJECT* project, bool detaching) {
     // remove apps and app_versions (but not if anonymous platform)
     //
     if (!project->anonymous_platform || detaching) {
-        avp_iter = app_versions.begin();
+        auto avp_iter = app_versions.begin();
         while (avp_iter != app_versions.end()) {
-            avp = *avp_iter;
+            avp = avp_iter->get();
             if (avp->project == project) {
                 avp_iter = app_versions.erase(avp_iter);
-                delete avp;
             } else {
                 ++avp_iter;
             }
         }
 
-        app_iter = apps.begin();
+        auto app_iter = apps.begin();
         while (app_iter != apps.end()) {
-            app = *app_iter;
+            app = app_iter->get();
             if (app->project == project) {
                 app_iter = apps.erase(app_iter);
-                delete app;
             } else {
                 ++app_iter;
             }
@@ -2255,12 +2245,11 @@ int CLIENT_STATE::detach_project(PROJECT* project) {
 
     // delete all FILE_INFOs associated with this project
     //
-    fi_iter = file_infos.begin();
+    auto fi_iter = file_infos.begin();
     while (fi_iter != file_infos.end()) {
-        fip = *fi_iter;
+        FILE_INFO* fip = fi_iter->get();
         if (fip->project == project) {
             fi_iter = file_infos.erase(fi_iter);
-            delete fip;
         } else {
             ++fi_iter;
         }
@@ -2268,17 +2257,16 @@ int CLIENT_STATE::detach_project(PROJECT* project) {
 
     // find project and remove it from the vector
     //
-    for (project_iter = projects.begin(); project_iter != projects.end(); ++project_iter) {
-        p = *project_iter;
-        if (p == project) {
-            project_iter = projects.erase(project_iter);
+    for (auto p_iter = projects.begin(); p_iter != projects.end(); ++p_iter) {
+        if (p_iter->get() == project) {
+            projects.erase(p_iter);
             break;
         }
     }
 
     // delete statistics file
     //
-    get_statistics_filename(project->master_url, path, sizeof(path));
+    get_statistics_filename(project->master_url.c_str(), path, sizeof(path));
     retval = boinc_delete_file(path);
     if (retval) {
         msg_printf(project, MSG_INTERNAL_ERROR,

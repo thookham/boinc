@@ -187,9 +187,9 @@ void escape_url(string& url) {
 // This is used as the project directory name.
 // Note: does not convert to lowercase.
 //
-void escape_url_readable(char *in, char* out) {
+void escape_url_readable(const char *in, char* out) {
     int x, y;
-    char *temp;
+    const char *temp;
 
     temp = strstr(in,"://");
     if (temp) {
@@ -273,8 +273,9 @@ bool urls_match(const char* url1, const char* url2) {
 
 // is the string a valid master URL, in canonical form?
 //
-bool valid_master_url(char* buf) {
-    char* p, *q;
+bool valid_master_url(const char* buf) {
+    const char* p;
+    const char* q;
     size_t n;
     bool bSSL = false;
 
@@ -301,7 +302,7 @@ bool valid_master_url(char* buf) {
     return true;
 }
 
-void escape_project_url(char *in, char* out) {
+void escape_project_url(const char *in, char* out) {
     escape_url_readable(in, out);
     char& last = out[strlen(out)-1];
     // remove trailing _

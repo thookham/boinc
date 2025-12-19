@@ -24,13 +24,13 @@
 // describes a project to which this client is attached
 //
 struct PROJECT : PROJ_AM {
-    char _project_dir[MAXPATHLEN];
-    char _project_dir_absolute[MAXPATHLEN];
+    std::string _project_dir;
+    std::string _project_dir_absolute;
 
     // the following items come from the account file
     // They are a function of the user and the project (not host)
     //
-    char authenticator[256];
+    std::string authenticator;
         // user's authenticator on this project
     std::string project_prefs;
         // without the enclosing <project_preferences> tags.
@@ -73,7 +73,7 @@ struct PROJECT : PROJ_AM {
     //
     bool no_rsc_ams[MAX_RSC];
 
-    char host_venue[256];
+    std::string host_venue;
         // logically, this belongs in the client state file
         // rather than the account file.
         // But we need it in the latter in order to parse prefs.
@@ -86,15 +86,16 @@ struct PROJECT : PROJ_AM {
     //
     std::vector<std::string> scheduler_urls;
         // where to find scheduling servers
-    char symstore[256];
+    std::string symstore;
         // URL of symbol server (Windows)
-    char user_name[256];
-    char team_name[256];
-    char email_hash[MD5_LEN];
-    char cross_project_id[MD5_LEN];
+    std::string user_name;
+    std::string team_name;
+    std::string email_hash;
+    std::string cross_project_id;
         // the "internal" user CPID
-    char external_cpid[MD5_LEN];
+    std::string external_cpid;
         // the "external" user CPID (as exported to stats sites)
+    std::string code_sign_key;
     double cpid_time;
     double user_total_credit;
     double user_expavg_credit;
@@ -205,7 +206,6 @@ struct PROJECT : PROJ_AM {
         // if using AM, do AM RPC before detaching
     bool ended;
         // project has ended; advise user to detach
-    char code_sign_key[MAX_KEY_LEN];
     std::vector<FILE_REF> user_files;
     std::vector<FILE_REF> project_files;
         // files not specific to apps or work - e.g. icons

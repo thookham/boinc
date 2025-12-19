@@ -155,7 +155,7 @@ int ACTIVE_TASK::get_shmem_seg_name() {
         return 0;
     }
 #endif
-    snprintf(init_data_path, sizeof(init_data_path), "%s/%s", slot_dir, INIT_DATA_FILE);
+    snprintf(init_data_path, sizeof(init_data_path), "%s/%s", slot_dir.c_str(), INIT_DATA_FILE);
 
     // ftok() only works if there's a file at the given location
     //
@@ -187,15 +187,15 @@ void ACTIVE_TASK::init_app_init_data(APP_INIT_DATA& aid) {
     aid.minor_version = BOINC_MINOR_VERSION;
     aid.release = BOINC_RELEASE;
     aid.app_version = app_version->version_num;
-    safe_strcpy(aid.app_name, wup->app->name);
-    if (strlen(wup->plan_class)) {
+    safe_strcpy(aid.app_name, wup->app->name.c_str());
+    if (!wup->plan_class.empty()) {
         // BUDA jobs
-        safe_strcpy(aid.plan_class, wup->plan_class);
+        safe_strcpy(aid.plan_class, wup->plan_class.c_str());
     } else {
-        safe_strcpy(aid.plan_class, app_version->plan_class);
+        safe_strcpy(aid.plan_class, app_version->plan_class.c_str());
     }
-    safe_strcpy(aid.symstore, project->symstore);
-    safe_strcpy(aid.acct_mgr_url, gstate.acct_mgr_info.master_url);
+    safe_strcpy(aid.symstore, project->symstore.c_str());
+    safe_strcpy(aid.acct_mgr_url, gstate.acct_mgr_info.master_url.c_str());
     if (project->project_specific_prefs.length()) {
         aid.project_preferences = strdup(
             project->project_specific_prefs.c_str()
@@ -204,19 +204,19 @@ void ACTIVE_TASK::init_app_init_data(APP_INIT_DATA& aid) {
     aid.userid = project->userid;
     aid.teamid = project->teamid;
     aid.hostid = project->hostid;
-    safe_strcpy(aid.user_name, project->user_name);
-    safe_strcpy(aid.team_name, project->team_name);
-    safe_strcpy(aid.project_dir, project->project_dir_absolute());
+    safe_strcpy(aid.user_name, project->user_name.c_str());
+    safe_strcpy(aid.team_name, project->team_name.c_str());
+    safe_strcpy(aid.project_dir, project->project_dir_absolute().c_str());
     relative_to_absolute("", aid.boinc_dir);
-    safe_strcpy(aid.authenticator, project->authenticator);
+    safe_strcpy(aid.authenticator, project->authenticator.c_str());
     aid.slot = slot;
 #ifdef _WIN32
     aid.client_pid = GetCurrentProcessId();
 #else
     aid.client_pid = getpid();
 #endif
-    safe_strcpy(aid.wu_name, wup->name);
-    safe_strcpy(aid.result_name, result->name);
+    safe_strcpy(aid.wu_name, wup->name.c_str());
+    safe_strcpy(aid.result_name, result->name.c_str());
     aid.user_total_credit = project->user_total_credit;
     aid.user_expavg_credit = project->user_expavg_credit;
     aid.host_total_credit = project->host_total_credit;
@@ -299,7 +299,7 @@ int ACTIVE_TASK::write_app_init_file(APP_INIT_DATA& aid) {
     );
 #endif
 
-    snprintf(init_data_path, sizeof(init_data_path), "%s/%s", slot_dir, INIT_DATA_FILE);
+    snprintf(init_data_path, sizeof(init_data_path), "%s/%s", slot_dir.c_str(), INIT_DATA_FILE);
 
     // delete the file using the switcher (Unix)
     // in case it's owned by another user and we don't have write access
@@ -346,8 +346,8 @@ static int create_dirs_for_logical_name(
 }
 
 static void prepend_prefix(APP_VERSION* avp, char* in, char* out, int len) {
-    if (strlen(avp->file_prefix)) {
-        snprintf(out, len, "%.16s/%.200s", avp->file_prefix, in);
+    if (!avp->file_prefix.empty()) {
+        snprintf(out, len, "%.16s/%.200s", avp->file_prefix.c_str(), in);
     } else {
         strlcpy(out, in, len);
     }
@@ -359,7 +359,7 @@ static void prepend_prefix(APP_VERSION* avp, char* in, char* out, int len) {
 //
 bool ACTIVE_TASK::must_copy_file(FILE_REF& fref, bool is_io_file) {
     if (fref.copy_file) return true;
-    if (is_io_file && strlen(app_version->file_prefix)) return true;
+    if (is_io_file && !app_version->file_prefix.empty()) return true;
     return false;
 }
 
@@ -381,19 +381,19 @@ int ACTIVE_TASK::setup_file(
         );
     }
 
-    if (strlen(fref.open_name)) {
+    if (!fref.open_name.empty()) {
         if (is_io_file) {
             prepend_prefix(
-                app_version, fref.open_name, open_name, sizeof(open_name)
+                app_version, (char*)fref.open_name.c_str(), open_name, sizeof(open_name)
             );
         } else {
-            safe_strcpy(open_name, fref.open_name);
+            safe_strcpy(open_name, fref.open_name.c_str());
         }
-        retval = create_dirs_for_logical_name(open_name, slot_dir);
+        retval = create_dirs_for_logical_name(open_name, slot_dir.c_str());
         if (retval) return retval;
-        snprintf(link_path, sizeof(link_path), "%s/%s", slot_dir, open_name);
+        snprintf(link_path, sizeof(link_path), "%s/%s", slot_dir.c_str(), open_name);
     } else {
-        snprintf(link_path, sizeof(link_path), "%s/%s", slot_dir, fip->name);
+        snprintf(link_path, sizeof(link_path), "%s/%s", slot_dir.c_str(), fip->name.c_str());
     }
 
     snprintf(rel_file_path, sizeof(rel_file_path), "../../%s", file_path );
@@ -684,8 +684,8 @@ int ACTIVE_TASK::start() {
     elapsed_time = checkpoint_elapsed_time;
     fraction_done = checkpoint_fraction_done;
 
-    graphics_request_queue.init(result->name);        // reset message queues
-    process_control_queue.init(result->name);
+    graphics_request_queue.init(const_cast<char*>(result->name.c_str()));        // reset message queues
+    process_control_queue.init(const_cast<char*>(result->name.c_str()));
 
     bytes_sent_episode = 0;
     bytes_received_episode = 0;
@@ -1258,8 +1258,8 @@ int ACTIVE_TASK::resume_or_start(bool first_time) {
     if (log_flags.cpu_sched) {
         char buf[256];
         safe_strcpy(buf, "");
-        if (strlen(app_version->plan_class)) {
-            snprintf(buf, sizeof(buf), " (%s)", app_version->plan_class);
+        if (!app_version->plan_class.empty()) {
+            snprintf(buf, sizeof(buf), " (%s)", app_version->plan_class.c_str());
         }
         msg_printf(result->project, MSG_INFO,
             "[cpu_sched] %s task %s using %s version %d%s in slot %d",

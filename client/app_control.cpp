@@ -404,7 +404,7 @@ void ACTIVE_TASK::handle_temporary_exit(
         }
         will_restart = true;
         result->schedule_backoff = gstate.now + backoff;
-        safe_strcpy(result->schedule_backoff_reason, reason);
+        result->schedule_backoff_reason = reason;
         set_task_state(PROCESS_UNINITIALIZED, "handle_temporary_exit");
     }
 }
@@ -602,7 +602,7 @@ void ACTIVE_TASK::handle_exited_app(int stat) {
             );
         }
         if (!wup->project->app_test) {
-            client_clean_out_dir(slot_dir, "handle_exited_app()");
+            client_clean_out_dir(slot_dir.c_str(), "handle_exited_app()");
         }
         clear_schedule_backoffs(this);
             // clear scheduling backoffs of jobs waiting for GPU
@@ -955,7 +955,7 @@ int ACTIVE_TASK::read_stderr_file() {
     // it's unlikely that more than that will be useful
     //
     int max_len = 63*1024;
-    snprintf(path, sizeof(path), "%s/%s", slot_dir, STDERR_FILE);
+    snprintf(path, sizeof(path), "%s/%s", slot_dir.c_str(), STDERR_FILE);
     if (!boinc_file_exists(path)) return 0;
     int retval  = read_file_malloc(
         path, buf1, max_len, !cc_config.stderr_head
@@ -965,7 +965,7 @@ int ACTIVE_TASK::read_stderr_file() {
     // if it's a vbox app, check for string in stderr saying
     // the job failed because CPU VM extensions disabled
     //
-    if (strstr(app_version->plan_class, "vbox")) {
+    if (strstr(app_version->plan_class.c_str(), "vbox")) {
         if (strstr(buf1, "ERR_CPU_VM_EXTENSIONS_DISABLED")) {
             msg_printf(0, MSG_INFO,
                 "Vbox app stderr indicates CPU VM extensions disabled"
@@ -1128,8 +1128,8 @@ int ACTIVE_TASK_SET::abort_project(PROJECT* project) {
     while (task_iter != active_tasks.end()) {
         ACTIVE_TASK* atp = task_iter->get();
         if (atp->result->project == project) {
-            client_clean_out_dir(atp->slot_dir, "abort_project()");
-            remove_project_owned_dir(atp->slot_dir);
+            client_clean_out_dir(atp->slot_dir.c_str(), "abort_project()");
+            remove_project_owned_dir(atp->slot_dir.c_str());
             task_iter = active_tasks.erase(task_iter);
         } else {
             ++task_iter;
@@ -1414,8 +1414,14 @@ void ACTIVE_TASK::get_graphics_msg() {
             );
         }
 
-        parse_str(msg_buf, "<web_graphics_url>", web_graphics_url, sizeof(web_graphics_url));
-        parse_str(msg_buf, "<remote_desktop_addr>", remote_desktop_addr, sizeof(remote_desktop_addr));
+
+        char url_buf[256], addr_buf[256];
+        if (parse_str(msg_buf, "<web_graphics_url>", url_buf, sizeof(url_buf))) {
+            web_graphics_url = url_buf;
+        }
+        if (parse_str(msg_buf, "<remote_desktop_addr>", addr_buf, sizeof(addr_buf))) {
+            remote_desktop_addr = addr_buf;
+        }
     }
 }
 
@@ -1489,7 +1495,7 @@ void ACTIVE_TASK_SET::get_msgs() {
         if (atp->get_app_status_msg()) {
             if (old_time != atp->checkpoint_cpu_time) {
                 char buf[512];
-                snprintf(buf, sizeof(buf), "%s checkpointed", atp->result->name);
+                snprintf(buf, sizeof(buf), "%s checkpointed", atp->result->name.c_str());
                 if (atp->overdue_checkpoint) {
                     gstate.request_schedule_cpus(buf);
                 }
@@ -1501,7 +1507,7 @@ void ACTIVE_TASK_SET::get_msgs() {
                 if (log_flags.checkpoint_debug) {
                     msg_printf(atp->wup->project, MSG_INFO,
                         "[checkpoint] result %s checkpointed",
-                        atp->result->name
+                        atp->result->name.c_str()
                     );
                 }
                 atp->write_task_state_file();
@@ -1532,8 +1538,8 @@ void ACTIVE_TASK::write_task_state_file() {
         "    <peak_swap_size>%.0f</peak_swap_size>\n"
         "    <peak_disk_usage>%.0f</peak_disk_usage>\n"
         "</active_task>\n",
-        result->project->master_url,
-        result->name,
+        result->project->master_url.c_str(),
+        result->name.c_str(),
         checkpoint_cpu_time,
         checkpoint_elapsed_time,
         checkpoint_fraction_done,
@@ -1570,7 +1576,7 @@ void ACTIVE_TASK::read_task_state_file() {
         );
         return;
     }
-    if (!urls_match(s, result->project->master_url)) {
+    if (!urls_match(s, result->project->master_url.c_str())) {
         msg_printf(wup->project, MSG_INTERNAL_ERROR,
             "wrong project URL in task state file"
         );
@@ -1582,7 +1588,7 @@ void ACTIVE_TASK::read_task_state_file() {
         );
         return;
     }
-    if (strcmp(s, result->name)) {
+    if (strcmp(s, result->name.c_str())) {
         msg_printf(wup->project, MSG_INTERNAL_ERROR,
             "wrong task name in task state file"
         );
