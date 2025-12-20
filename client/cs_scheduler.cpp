@@ -169,7 +169,7 @@ int CLIENT_STATE::make_scheduler_request(PROJECT* p) {
     if (ucp) {
         fprintf(f,
             "<cross_project_id>%s</cross_project_id>\n",
-            ucp->cpid
+            ucp->cpid.c_str()
         );
     }
 
@@ -608,7 +608,7 @@ int CLIENT_STATE::handle_scheduler_reply(
                 );
                 boinc_rename(path, path2);
 
-                strcpy(old_project_dir, project->project_dir());
+                strcpy(old_project_dir, project->project_dir().c_str());
 
                 // delete account file and write new one
                 //
@@ -620,7 +620,7 @@ int CLIENT_STATE::handle_scheduler_reply(
                 // rename project dir
                 //
                 project->_project_dir = "";
-                safe_strcpy(path2, project->project_dir());
+                safe_strcpy(path2, project->project_dir().c_str());
                 retval = boinc_rename(old_project_dir, path2);
                 if (retval) {
                     msg_printf(project, MSG_USER_ALERT,

@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2025-12-19
+## [8.3.0-patch1] - 2025-12-20
 
 ### Added
 
@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
   - Corrected `std::unique_ptr` usage in project/result iteration loops.
   - Added necessary type casts for legacy function signatures.
 - **Build System**: Updated `client/CMakeLists.txt` to support `vcpkg` dependency management.
+- **Loop Modernization**: Converted legacy iterator loops to range-based `for` loops in `acct_mgr.cpp`, `async_file.cpp`, and `cs_notice.cpp`.
 
 ### Fixed
 

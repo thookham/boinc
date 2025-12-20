@@ -67,7 +67,7 @@ int CLIENT_STATE::read_trickle_files(PROJECT* project, FILE* f) {
         *p = '_';
         t = atoi(p+1);
 
-        snprintf(path, sizeof(path), "%s/%s", project->project_dir(), fname);
+        snprintf(path, sizeof(path), "%s/%s", project->project_dir().c_str(), fname);
         retval = read_file_malloc(path, file_contents);
         if (retval) {
             if (log_flags.trickle_debug) {
@@ -98,7 +98,7 @@ int CLIENT_STATE::read_trickle_files(PROJECT* project, FILE* f) {
         // append .sent to filename, so we'll know which ones to delete later
         //
         if (!ends_with(fname, ".sent")) {
-            snprintf(newpath, sizeof(newpath), "%s/%s.sent", project->project_dir(), fname);
+            snprintf(newpath, sizeof(newpath), "%s/%s.sent", project->project_dir().c_str(), fname);
             boinc_rename(path, newpath);
         }
     }
@@ -119,7 +119,7 @@ int CLIENT_STATE::remove_trickle_files(PROJECT* project) {
         safe_strcpy(fname, fn.c_str());
         if (!starts_with(fname, "trickle_up")) continue;
         if (!ends_with(fname, ".sent")) continue;
-        snprintf(path, sizeof(path), "%s/%s", project->project_dir(), fname);
+        snprintf(path, sizeof(path), "%s/%s", project->project_dir().c_str(), fname);
         delete_project_owned_file(path, true);
     }
     return 0;
@@ -143,7 +143,7 @@ int CLIENT_STATE::handle_trickle_down(PROJECT* project, FILE* in) {
             if (!rp) return ERR_NULL;
             ACTIVE_TASK* atp = lookup_active_task_by_result(rp);
             if (!atp) return ERR_NULL;
-            snprintf(path, sizeof(path), "%s/trickle_down_%d", atp->slot_dir, send_time);
+            snprintf(path, sizeof(path), "%s/trickle_down_%d", atp->slot_dir.c_str(), send_time);
             FILE* f = fopen(path, "w");
             if (!f) return ERR_FOPEN;
             fputs(body.c_str(), f);
@@ -166,7 +166,7 @@ int CLIENT_STATE::handle_trickle_down(PROJECT* project, FILE* in) {
 bool trickle_up_poll() {
     unsigned int i, j;
     for (i=0; i<gstate.projects.size(); i++) {
-        PROJECT* p = gstate.projects[i];
+        PROJECT* p = gstate.projects[i].get();
         for (j=0; j<p->trickle_up_ops.size(); j++) {
             TRICKLE_UP_OP *t = p->trickle_up_ops[j];
             t->gui_http->poll();
@@ -193,7 +193,7 @@ static void trickle_up_request_message(
         "%s\n"
         "    </msg_from_host>\n"
         "</scheduler_request>\n",
-        p->authenticator,
+        p->authenticator.c_str(),
         p->hostid,
         p->rpc_seqno,
         gstate.core_client_version.major,

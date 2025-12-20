@@ -54,7 +54,7 @@ static bool cmp(const NOTICE& n1, const NOTICE& n2) {
 
 static void project_feed_list_file_name(PROJ_AM* p, char* buf, int len) {
     char url[256];
-    escape_project_url(p->master_url, url);
+    escape_project_url(p->master_url.c_str(), url);
     snprintf(buf, len, "notices/feeds_%s.xml", url);
 }
 
@@ -299,16 +299,13 @@ static inline bool same_text(NOTICE& n1, NOTICE& n2) {
 }
 
 void NOTICES::clear_keep() {
-    deque<NOTICE>::iterator i = notices.begin();
-    while (i != notices.end()) {
-        NOTICE& n = *i;
+    for (auto& n : notices) {
         n.keep = false;
-        ++i;
     }
 }
 
 void NOTICES::unkeep(const char* url) {
-    deque<NOTICE>::iterator i = notices.begin();
+    auto i = notices.begin();
     bool removed_something = false;
     while (i != notices.end()) {
         NOTICE& n = *i;
@@ -345,7 +342,7 @@ static inline bool same_guid(NOTICE& n1, NOTICE& n2) {
 // Also remove notices older than 30 days
 //
 bool NOTICES::remove_dups(NOTICE& n) {
-    deque<NOTICE>::iterator i = notices.begin();
+    auto i = notices.begin();
     bool removed_something = false;
     bool retval = true;
     double min_time = gstate.now - 30*86400;
@@ -512,8 +509,7 @@ void NOTICES::write_archive(RSS_FEED* rfp) {
     MIOFILE fout;
     fout.init_file(f);
     fout.printf("<notices>\n");
-    for (unsigned int i=0; i<notices.size(); i++) {
-        NOTICE& n = notices[i];
+    for (auto& n : notices) {
         if (rfp) {
             if (strcmp(rfp->url, n.feed_url)) continue;
         } else {
@@ -528,7 +524,7 @@ void NOTICES::write_archive(RSS_FEED* rfp) {
 // Remove outdated notices
 //
 void NOTICES::remove_notices(PROJECT* p, int which) {
-    deque<NOTICE>::iterator i = notices.begin();
+    auto i = notices.begin();
     while (i != notices.end()) {
         NOTICE& n = *i;
         if (p && strcmp(n.project_name, p->get_project_name())) {
@@ -878,7 +874,7 @@ void RSS_FEEDS::init() {
 
     if (!gstate.acct_mgr_info.get_no_project_notices()) {
         for (i=0; i<gstate.projects.size(); i++) {
-            PROJECT* p = gstate.projects[i];
+            PROJECT* p = gstate.projects[i].get();
             init_proj_am(p);
         }
     }
@@ -955,7 +951,7 @@ void RSS_FEEDS::update_feed_list() {
     }
     if (!gstate.acct_mgr_info.get_no_project_notices()) {
         for (i=0; i<gstate.projects.size(); i++) {
-            PROJECT* p = gstate.projects[i];
+            PROJECT* p = gstate.projects[i].get();
             update_proj_am(p);
         }
     }

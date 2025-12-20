@@ -166,7 +166,7 @@ void NET_STATUS::network_available() {
         pfx->next_request_time = 0;
     }
     for (i=0; i<gstate.projects.size(); i++) {
-        PROJECT* p = gstate.projects[i];
+        PROJECT* p = gstate.projects[i].get();
         p->min_rpc_time = 0;
         p->upload_backoff.clear_temporary();
         p->download_backoff.clear_temporary();

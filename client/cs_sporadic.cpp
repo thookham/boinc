@@ -125,7 +125,7 @@ void CLIENT_STATE::sporadic_poll() {
         // the job is in state CA_COMPUTING
 
         // see if the job needs to stop computing
-        if (computing_suspended(atp)) {
+        if (computing_suspended(atp.get())) {
             atp->sporadic_ca_state = CA_NONE;
             changed_active = true;
             if (log_flags.sporadic_debug) {
@@ -134,7 +134,7 @@ void CLIENT_STATE::sporadic_poll() {
                     atp->result->name.c_str()
                 );
             }
-        } else if (!sporadic_resources.enough(atp)) {
+        } else if (!sporadic_resources.enough(atp.get())) {
             // this could happen if user prefs change
             atp->sporadic_ca_state = CA_NONE;
             changed_active = true;
@@ -158,7 +158,7 @@ void CLIENT_STATE::sporadic_poll() {
         }
         // the job can keep computing - reserve its resources
         if (atp->sporadic_ca_state == CA_COMPUTING) {
-            sporadic_resources.reserve(atp);
+            sporadic_resources.reserve(atp.get());
         }
     }
 
@@ -168,15 +168,15 @@ void CLIENT_STATE::sporadic_poll() {
     for (auto const& atp : active_tasks.active_tasks) {
         if (!atp->sporadic()) continue;
         if (atp->sporadic_ca_state != CA_COULD_COMPUTE) continue;
-        if (computing_suspended(atp)) {
+        if (computing_suspended(atp.get())) {
             atp->sporadic_ca_state = CA_DONT_COMPUTE;
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
                     "[sporadic] %s can no longer compute: suspended",
-                    atp->result->name
+                    atp->result->name.c_str()
                 );
             }
-        } else if (!sporadic_resources.enough(atp)) {
+        } else if (!sporadic_resources.enough(atp.get())) {
             atp->sporadic_ca_state = CA_DONT_COMPUTE;
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
@@ -188,7 +188,7 @@ void CLIENT_STATE::sporadic_poll() {
             if (now > atp->sporadic_ignore_until) {
                 atp->sporadic_ca_state = CA_COMPUTING;
                 atp->sporadic_ignore_until = now + SPORADIC_MSG_DELAY;
-                sporadic_resources.reserve(atp);
+                sporadic_resources.reserve(atp.get());
                 changed_active = true;
                 if (log_flags.sporadic_debug) {
                     msg_printf(atp->result->project, MSG_INFO,
@@ -205,7 +205,7 @@ void CLIENT_STATE::sporadic_poll() {
     for (auto const& atp : active_tasks.active_tasks) {
         if (!atp->sporadic()) continue;
         if (atp->sporadic_ca_state != CA_NONE) continue;
-        if (computing_suspended(atp)) {
+        if (computing_suspended(atp.get())) {
             atp->sporadic_ca_state = CA_DONT_COMPUTE;
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,
@@ -213,7 +213,7 @@ void CLIENT_STATE::sporadic_poll() {
                     atp->result->name.c_str()
                 );
             }
-        } else if (!sporadic_resources.enough(atp)) {
+        } else if (!sporadic_resources.enough(atp.get())) {
             atp->sporadic_ca_state = CA_DONT_COMPUTE;
             if (log_flags.sporadic_debug) {
                 msg_printf(atp->result->project, MSG_INFO,

@@ -588,10 +588,8 @@ void ACCT_MGR_OP::handle_reply(int http_op_retval) {
     //
     while (1) {
         bool found = false;
-        for (std::vector<std::unique_ptr<PROJECT>>::iterator it = gstate.projects.begin();
-            it != gstate.projects.end(); ++it
-        ) {
-            PROJECT* p = it->get();
+        for (auto& p_ptr : gstate.projects) {
+            PROJECT* p = p_ptr.get();
             if (p->detach_when_done && !gstate.nresults_for_project(p) && p->attached_via_acct_mgr) {
                 gstate.detach_project(p);
                 found = true;

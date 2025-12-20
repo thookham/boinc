@@ -1431,8 +1431,8 @@ int CLIENT_STATE::link_app_version(PROJECT* p, APP_VERSION* avp) {
 
 #ifndef SIM
 
-    safe_strcpy(avp->graphics_exec_path, "");
-    safe_strcpy(avp->graphics_exec_file, "");
+    avp->graphics_exec_path = "";
+    avp->graphics_exec_file = "";
 
     for (unsigned int i=0; i<avp->app_files.size(); i++) {
         FILE_REF& file_ref = avp->app_files[i];

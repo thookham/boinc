@@ -64,7 +64,7 @@ bool CLIENT_STATE::start_new_file_xfer(PERS_FILE_XFER& pfx) {
     // (uploads and downloads are limited separately)
     //
     for (i=0; i<file_xfers->file_xfers.size(); i++) {
-        FILE_XFER* fxp = file_xfers->file_xfers[i];
+        FILE_XFER* fxp = file_xfers->file_xfers[i].get();
 
         // don't count user or project files
         //
@@ -94,7 +94,7 @@ int CLIENT_STATE::make_project_dirs() {
     int retval;
     vector<string> pds;
     for (i=0; i<projects.size(); i++) {
-        PROJECT *p = projects[i];
+        PROJECT *p = projects[i].get();
         retval = make_project_dir(*p);
         if (retval) return retval;
         pds.push_back(p->project_dir());
@@ -242,7 +242,7 @@ int FILE_INFO::verify_file(
     }
 
     if (gstate.global_prefs.dont_verify_images
-        && is_image_file(name)
+        && is_image_file(name.c_str())
         && size>0
     ) {
         return 0;
@@ -262,7 +262,7 @@ int FILE_INFO::verify_file(
     if (!verify_contents) return 0;
 
     if (signature_required) {
-        if (!strlen(file_signature) && !cert_sigs) {
+        if (file_signature.empty() && !cert_sigs) {
             msg_printf(project, MSG_INTERNAL_ERROR,
                 "Application file %s missing signature", name.c_str()
             );
@@ -309,7 +309,7 @@ int FILE_INFO::verify_file(
             }
         }
         retval = check_file_signature2(
-            cksum, file_signature, project->code_sign_key, verified
+            cksum, file_signature.c_str(), project->code_sign_key, verified
         );
         if (retval) {
             msg_printf(project, MSG_INTERNAL_ERROR,
@@ -329,7 +329,7 @@ int FILE_INFO::verify_file(
             status = ERR_RSA_FAILED;
             return ERR_RSA_FAILED;
         }
-    } else if (strlen(md5_cksum)) {
+    } else if (!md5_cksum.empty()) {
         if (!strlen(cksum)) {
             if (allow_async && nbytes > ASYNC_FILE_THRESHOLD) {
                 std::unique_ptr<ASYNC_VERIFY> avp = std::make_unique<ASYNC_VERIFY>();
@@ -353,7 +353,7 @@ int FILE_INFO::verify_file(
                 return retval;
             }
         }
-        if (strcmp(cksum, md5_cksum)) {
+        if (strcmp(cksum, md5_cksum.c_str())) {
             if (show_errors) {
                 msg_printf(project, MSG_INTERNAL_ERROR,
                     "MD5 check failed for %s", name.c_str()
@@ -389,7 +389,7 @@ bool CLIENT_STATE::create_and_delete_pers_file_xfers() {
     // and make PERS_FILE_XFERs for them
     //
     for (i=0; i<file_infos.size(); i++) {
-        fip = file_infos[i];
+        fip = file_infos[i].get();
         pfx = fip->pers_file_xfer;
         if (pfx) continue;
         if (fip->downloadable() && fip->status == FILE_NOT_PRESENT) {

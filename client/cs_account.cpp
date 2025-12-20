@@ -313,7 +313,7 @@ int CLIENT_STATE::parse_account_files_venue() {
     unsigned int i;
 
     for (i=0; i<projects.size(); i++) {
-        PROJECT* p = projects[i];
+        PROJECT* p = projects[i].get();
         if (!p->host_venue.empty()) {
             p->parse_account_file_venue();
         }
@@ -503,7 +503,7 @@ int PROJECT::write_statistics_file() {
     FILE* f;
     int retval;
 
-    get_statistics_filename(master_url, path, sizeof(path));
+    get_statistics_filename(master_url.c_str(), path, sizeof(path));
     f = boinc_fopen(TEMP_STATS_FILE_NAME, "w");
     if (!f) return ERR_FOPEN;
     fprintf(f,

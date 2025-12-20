@@ -67,7 +67,7 @@ bool CLIENT_STATE::handle_finished_apps() {
         case PROCESS_ABORTED:
             if (log_flags.task) {
                 msg_printf(atp->wup->project, MSG_INFO,
-                    "Computation for task %s finished", atp->result->name
+                    "Computation for task %s finished", atp->result->name.c_str()
                 );
             }
             app_finished(*atp);
@@ -134,7 +134,7 @@ int CLIENT_STATE::app_finished(ACTIVE_TASK& at) {
                 msg_printf(
                     rp->project, MSG_INFO,
                     "Output file %s for task %s absent",
-                    fip->name, rp->name
+                    fip->name.c_str(), rp->name.c_str()
                 );
             } else if (size > fip->max_nbytes) {
                 // Note: this is only checked when the application finishes.
@@ -143,7 +143,7 @@ int CLIENT_STATE::app_finished(ACTIVE_TASK& at) {
                 msg_printf(
                     rp->project, MSG_INFO,
                     "Output file %s for task %s exceeds size limit.",
-                    fip->name, rp->name
+                    fip->name.c_str(), rp->name.c_str()
                 );
                 msg_printf(
                     rp->project, MSG_INFO,
@@ -163,7 +163,9 @@ int CLIENT_STATE::app_finished(ACTIVE_TASK& at) {
                         retval = fip->gzip();
                     }
                     if (!retval) {
-                        retval = md5_file(path, fip->md5_cksum, fip->nbytes);
+                        char md5_buf[MD5_LEN];
+                        retval = md5_file(path, md5_buf, fip->nbytes);
+                        if (!retval) fip->md5_cksum = md5_buf;
                     }
                     if (retval) {
                         fip->status = retval;
@@ -285,7 +287,7 @@ int CLIENT_STATE::verify_app_version_files(RESULT* rp) {
         if (retval && log_flags.task_debug) {
             msg_printf(fip->project, MSG_INFO,
                 "app version file %s: bad contents",
-                fip->name
+                fip->name.c_str()
             );
             ret = retval;
         }
@@ -312,7 +314,7 @@ int CLIENT_STATE::latest_version(APP* app, char* platform) {
 
     for (auto const& avp : app_versions) {
         if (avp->app != app) continue;
-        if (strcmp(platform, avp->platform)) continue;
+        if (strcmp(platform, avp->platform.c_str())) continue;
         if (avp->version_num < best) continue;
         best = avp->version_num;
     }
@@ -358,7 +360,7 @@ void ACTIVE_TASK_SET::check_for_finished_jobs() {
         if (atp->finish_file_present(exit_code)) {
             msg_printf(atp->wup->project, MSG_INFO,
                 "Found finish file for %s; exit code %d",
-                atp->result->name, exit_code
+                atp->result->name.c_str(), exit_code
             );
             atp->handle_exited_app(exit_code);
         }
@@ -458,7 +460,7 @@ void CLIENT_STATE::docker_cleanup() {
     //
     DOCKER_JOB_INFO info;
     for (auto const& atp : active_tasks.active_tasks) {
-        if (!strstr(atp->app_version->plan_class, "docker")) continue;
+        if (!strstr(atp->app_version->plan_class.c_str(), "docker")) continue;
         char buf[256];
         escape_project_url(atp->wup->project->master_url.c_str(), buf);
         string s = docker_image_name(buf, atp->wup->name.c_str());

@@ -954,7 +954,7 @@ void WORK_FETCH::compute_shares() {
     unsigned int i;
     PROJECT* p;
     for (i=0; i<gstate.projects.size(); i++) {
-        p = gstate.projects[i];
+        p = gstate.projects[i].get();
         if (p->non_cpu_intensive) continue;
         if (p->pwf.project_reason) continue;
         for (int j=0; j<coprocs.n_rsc; j++) {
@@ -964,7 +964,7 @@ void WORK_FETCH::compute_shares() {
         }
     }
     for (i=0; i<gstate.projects.size(); i++) {
-        p = gstate.projects[i];
+        p = gstate.projects[i].get();
         if (p->non_cpu_intensive) continue;
         if (p->pwf.project_reason) continue;
         for (int j=0; j<coprocs.n_rsc; j++) {
@@ -1107,13 +1107,13 @@ void WORK_FETCH::init() {
     //
     unsigned int i, j;
     for (i=0; i<gstate.projects.size(); i++) {
-        PROJECT* p = gstate.projects[i];
+        PROJECT* p = gstate.projects[i].get();
         if (!p->anonymous_platform) continue;
         for (int k=0; k<coprocs.n_rsc; k++) {
             p->rsc_pwf[k].anonymous_platform_no_apps = true;
         }
         for (j=0; j<gstate.app_versions.size(); j++) {
-            APP_VERSION* avp = gstate.app_versions[j];
+            APP_VERSION* avp = gstate.app_versions[j].get();
             if (avp->project != p) continue;
             p->rsc_pwf[avp->resource_usage.rsc_type].anonymous_platform_no_apps = false;
         }
@@ -1136,7 +1136,7 @@ void CLIENT_STATE::compute_nuploading_results() {
         projects[i]->too_many_uploading_results = false;
     }
     for (i=0; i<results.size(); i++) {
-        RESULT* rp = results[i];
+        RESULT* rp = results[i].get();
         if (rp->state() == RESULT_FILES_UPLOADING) {
             rp->project->nuploading_results++;
         }

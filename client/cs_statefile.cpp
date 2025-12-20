@@ -978,8 +978,8 @@ int CLIENT_STATE::parse_app_info(PROJECT* p, FILE* in) {
                 delete avp;
                 continue;
             }
-            if (strlen(avp->platform) == 0) {
-                safe_strcpy(avp->platform, get_primary_platform());
+            if (avp->platform.empty()) {
+                avp->platform = get_primary_platform();
             }
             if (link_app_version(p, avp)) {
                 delete avp;

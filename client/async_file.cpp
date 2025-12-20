@@ -164,13 +164,11 @@ void ASYNC_COPY::error(int retval) {
 }
 
 void remove_async_copy(ASYNC_COPY* acp) {
-    vector<ASYNC_COPY*>::iterator i = async_copies.begin();
-    while (i != async_copies.end()) {
+    for (auto i = async_copies.begin(); i != async_copies.end(); ++i) {
         if (*i == acp) {
             async_copies.erase(i);
             break;
         }
-        ++i;
     }
     delete acp;
 }

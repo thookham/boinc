@@ -567,13 +567,13 @@ int PROJECT::parse_preferences_for_user_files() {
             fip = new FILE_INFO;
             fip->project = this;
             fip->download_urls.add(url);
-            safe_strcpy(fip->name, filename.c_str());
+            fip->name = filename;
             fip->is_user_file = true;
-            gstate.file_infos.push_back(fip);
+            gstate.file_infos.push_back(std::unique_ptr<FILE_INFO>(fip));
         }
 
         fr.file_info = fip;
-        safe_strcpy(fr.open_name, open_name.c_str());
+        fr.open_name = open_name;
         user_files.push_back(fr);
     }
     return 0;
@@ -631,8 +631,8 @@ void CLIENT_STATE::read_global_prefs(
             // This is a fix for cases where main_host_venue is out of synch
             //
             PROJECT* p = global_prefs_source_project();
-            if (p && strcmp(main_host_venue, p->host_venue)) {
-                safe_strcpy(main_host_venue, p->host_venue);
+            if (p && strcmp(main_host_venue, p->host_venue.c_str())) {
+                safe_strcpy(main_host_venue, p->host_venue.c_str());
                 global_prefs.parse_file(fname, main_host_venue, found_venue);
             }
         }

@@ -60,7 +60,7 @@ int FILE_XFER::init_download(FILE_INFO& file_info) {
 
     // create subdirs of project dir if needed
     //
-    int retval = boinc_make_dirs(fip->project->project_dir(), fip->name);
+    int retval = boinc_make_dirs(fip->project->project_dir().c_str(), fip->name.c_str());
     if (retval) return retval;
 
     get_pathname(fip, pathname, sizeof(pathname));
@@ -236,7 +236,7 @@ int FILE_XFER_SET::remove(FILE_XFER* fxp) {
         ++iter;
     }
     msg_printf(fxp->fip->project, MSG_INTERNAL_ERROR,
-        "File transfer for %s not found", fxp->fip->name
+        "File transfer for %s not found", fxp->fip->name.c_str()
     );
     return ERR_NOT_FOUND;
 }
@@ -342,7 +342,7 @@ bool FILE_XFER_SET::poll() {
                     if (diff>0 && diff<MIN_DOWNLOAD_INCREMENT) {
                         msg_printf(fxp->fip->project, MSG_INFO,
                             "Incomplete read of %f < 5KB for %s - truncating",
-                            diff, fxp->fip->name
+                            diff, fxp->fip->name.c_str()
                         );
                         boinc_truncate(pathname, fxp->starting_size);
                     }
